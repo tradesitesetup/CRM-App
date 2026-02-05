@@ -16,10 +16,10 @@
         <div class="controls">
             <label class="btn btn-success file-upload-btn">
                 📁 Upload CSV File
-                <input type="file" id="csvFileInput" accept=".csv" onchange="app.handleCSVUpload(event)">
+                <input type="file" id="csvFileInput" accept=".csv">
             </label>
 
-            <button class="btn btn-export" onclick="app.exportToExcel()">
+            <button class="btn btn-export" id="exportBtn">
                 📊 Export to Excel
             </button>
             
@@ -103,8 +103,6 @@
             <div id="leadsList"></div>
         </div>
     </div>
-
-    <!-- Modals remain the same -->
 
     <script src="app.js"></script>
 </body>
