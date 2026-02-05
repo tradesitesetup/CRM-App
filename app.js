@@ -1,36 +1,14 @@
 const app = {
     leads: [],
-    filteredLeads: [],
-    currentTab: 'open',
-
-    init: function() {
-        document.getElementById('csvFileInput').addEventListener('change', this.handleCSVUpload.bind(this));
-        document.getElementById('exportBtn').addEventListener('click', this.exportToExcel.bind(this));
-        document.getElementById('searchInput').addEventListener('input', this.handleSearch.bind(this));
-        this.updateStats();
-        this.bindTabs();
-    },
-
-    bindTabs: function() {
-        const tabs = document.querySelectorAll('.tab');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                this.currentTab = tab.dataset.tab;
-                this.renderLeads();
-            });
-        });
-    },
 
     handleCSVUpload: function(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = e => {
-            const text = e.target.result;
-            this.parseCSV(text);
+        reader.onload = (e) => {
+            const csvText = e.target.result;
+            this.parseCSV(csvText);
         };
         reader.readAsText(file);
     },
@@ -60,28 +38,33 @@ const app = {
             };
         });
 
+        // Automatically start processing CSV
         this.processWebsites();
     },
 
     processWebsites: async function() {
+        if (this.leads.length === 0) return;
+
         document.getElementById('loadingState').style.display = 'block';
         document.getElementById('emptyState').style.display = 'none';
 
-        const total = this.leads.length;
-        for (let i = 0; i < total; i++) {
+        for (let i = 0; i < this.leads.length; i++) {
             const lead = this.leads[i];
-            try {
-                await this.checkWebsite(lead.website);
-            } catch {
-                lead.status = 'no-email';
-            }
-            this.updateProgress(i + 1, total);
 
-            // Prompt for email if website is down
+            // Simulated website check: if blank or invalid, mark as no-email
+            if (!lead.website || !lead.website.includes('.')) {
+                lead.status = 'no-email';
+            } else {
+                lead.status = 'open';
+            }
+
+            // Prompt for email if website is down / no email
             if (lead.status === 'no-email') {
                 const email = prompt(`Enter email for ${lead.name}:`);
                 lead.email = email || '';
             }
+
+            this.updateProgress(i + 1, this.leads.length);
         }
 
         document.getElementById('loadingState').style.display = 'none';
@@ -89,88 +72,76 @@ const app = {
         this.updateStats();
     },
 
-    checkWebsite: function(url) {
-        return new Promise(resolve => {
-            if (!url) return resolve(false);
-
-            // Simple fetch to test website (CORS may block in browser)
-            fetch(url, { mode: 'no-cors' }).then(() => {
-                resolve(true);
-            }).catch(() => {
-                resolve(false);
-            });
-        });
-    },
-
     updateProgress: function(current, total) {
         const percent = Math.round((current / total) * 100);
         document.getElementById('progressFill').style.width = percent + '%';
-        document.getElementById('progressText').innerText = `${current} / ${total}`;
+        document.getElementById('progressText').innerText = `${current} of ${total} processed`;
     },
 
     renderLeads: function() {
         const leadsList = document.getElementById('leadsList');
         leadsList.innerHTML = '';
 
-        const filtered = this.leads.filter(lead => lead.status === this.currentTab);
-        if (filtered.length === 0) {
-            document.getElementById('emptyState').style.display = 'block';
-        } else {
-            document.getElementById('emptyState').style.display = 'none';
+        const filteredLeads = this.leads.filter(lead => lead.status === 'open');
+
+        if (filteredLeads.length === 0) {
+            leadsList.innerHTML = '<p>No leads in this category.</p>';
+            return;
         }
 
-        filtered.forEach(lead => {
+        filteredLeads.forEach((lead, idx) => {
             const div = document.createElement('div');
             div.className = 'lead-item';
             div.innerHTML = `
                 <strong>${lead.name}</strong><br>
                 ${lead.address}<br>
-                <a href="${lead.website}" target="_blank">${lead.website}</a><br>
+                Website: ${lead.website || 'N/A'}<br>
                 Email: ${lead.email || 'N/A'}
             `;
             leadsList.appendChild(div);
         });
     },
 
-    handleSearch: function(event) {
-        const query = event.target.value.toLowerCase();
-        this.leads.forEach(lead => {
-            lead.visible = lead.name.toLowerCase().includes(query);
-        });
-        this.renderLeads();
-    },
-
     updateStats: function() {
-        const totalLeads = this.leads.length;
-        const openLeads = this.leads.filter(l => l.status === 'open').length;
+        const total = this.leads.length;
+        const open = this.leads.filter(l => l.status === 'open').length;
+        const noEmail = this.leads.filter(l => l.status === 'no-email').length;
         const contacted = this.leads.filter(l => l.status === 'contacted').length;
         const emailFound = this.leads.filter(l => l.email).length;
-        const noEmail = this.leads.filter(l => !l.email).length;
-        const closed = this.leads.filter(l => l.status === 'closed').length;
 
-        document.getElementById('totalLeads').innerText = totalLeads;
-        document.getElementById('openLeads').innerText = openLeads;
+        document.getElementById('totalLeads').innerText = total;
+        document.getElementById('openLeads').innerText = open;
         document.getElementById('contactedCount').innerText = contacted;
         document.getElementById('emailFoundCount').innerText = emailFound;
         document.getElementById('noEmailCount').innerText = noEmail;
-        document.getElementById('closedCount').innerText = closed;
+
+        // Update tab badges
+        document.getElementById('openBadge').innerText = open;
+        document.getElementById('contactedBadge').innerText = contacted;
+        document.getElementById('emailFoundBadge').innerText = emailFound;
+        document.getElementById('noEmailBadge').innerText = noEmail;
     },
 
     exportToExcel: function() {
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Business name,Address,Website,Email,Status\n";
-        this.leads.forEach(l => {
-            csvContent += `"${l.name}","${l.address}","${l.website}","${l.email}","${l.status}"\n`;
+        if (!this.leads.length) return alert('No leads to export!');
+
+        const rows = [
+            ['Business name', 'Address', 'Website', 'Email', 'Status']
+        ];
+
+        this.leads.forEach(lead => {
+            rows.push([lead.name, lead.address, lead.website, lead.email, lead.status]);
         });
 
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "leads_export.csv");
+        const csvContent = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'leads_export.csv');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 };
-
-window.addEventListener('DOMContentLoaded', () => app.init());
