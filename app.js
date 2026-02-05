@@ -1,136 +1,136 @@
-let leads = [];
-
 const app = {
-    csvFile: null,
+    leads: [],
+    currentTab: 'open',
 
-    handleCSVUpload(event) {
+    handleCSVUpload: async function (event) {
         const file = event.target.files[0];
         if (!file) return;
-        this.csvFile = file;
-        this.readCSV(file);
-    },
 
-    readCSV(file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const text = e.target.result;
             this.parseCSV(text);
+            await this.processWebsites();
+            this.renderLeads();
         };
         reader.readAsText(file);
     },
 
-    parseCSV(text) {
-        const lines = text.split(/\r?\n/);
-        const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
-        leads = lines.slice(1).map(line => {
-            const values = line.split(',').map(v => v.replace(/"/g,'').trim());
-            let obj = {};
-            headers.forEach((h, i) => obj[h] = values[i] || '');
-            obj.combinedAddress = `${obj['Address'] || ''} ${obj['City, State'] || ''}`.trim();
-            obj.status = 'Open';
-            obj.email = '';
-            return obj;
+    parseCSV: function (csvText) {
+        const rows = csvText.split(/\r?\n/).filter(Boolean);
+        const headers = rows[0].split(',').map(h => h.trim());
+        this.leads = rows.slice(1).map(row => {
+            const values = row.split(',').map(v => v.trim());
+            const lead = {};
+            headers.forEach((h, i) => {
+                lead[h] = values[i] || '';
+            });
+            lead['Business Address'] = `${lead['Address'] || ''}, ${lead['City, State'] || ''}`;
+            lead.status = 'open';
+            lead.email = '';
+            return lead;
+        });
+    },
+
+    processWebsites: async function () {
+        const urls = this.leads.map(l => l['Website']).filter(Boolean);
+        if (urls.length === 0) return;
+
+        const response = await fetch('/api/checkWebsites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls })
         });
 
-        document.getElementById('totalLeads').innerText = leads.length;
+        const results = await response.json();
+        this.leads.forEach(lead => {
+            const result = results.find(r => r.url === lead['Website']);
+            lead.websiteStatus = result ? (result.ok ? 'Working' : 'Down') : 'Unknown';
+        });
+    },
+
+    renderLeads: function () {
+        const container = document.getElementById('leadsList');
+        container.innerHTML = '';
+
+        this.leads.forEach((lead, index) => {
+            const leadDiv = document.createElement('div');
+            leadDiv.className = 'lead-item';
+
+            leadDiv.innerHTML = `
+                <div class="lead-main">
+                    <strong>${lead['Business name']}</strong>
+                    <span>${lead['Business Address']}</span>
+                    <span>Website: ${lead['Website']} (${lead.websiteStatus || 'Unknown'})</span>
+                </div>
+                <div class="lead-actions">
+                    <select onchange="app.updateStatus(${index}, this.value)">
+                        <option value="open" ${lead.status==='open'?'selected':''}>Open</option>
+                        <option value="contacted" ${lead.status==='contacted'?'selected':''}>Contacted</option>
+                        <option value="email-found" ${lead.status==='email-found'?'selected':''}>Email Found</option>
+                        <option value="no-email" ${lead.status==='no-email'?'selected':''}>No Email</option>
+                        <option value="closed" ${lead.status==='closed'?'selected':''}>Closed</option>
+                    </select>
+                    <button onclick="app.promptEmail(${index})">Has Email</button>
+                </div>
+            `;
+            container.appendChild(leadDiv);
+        });
+
+        this.updateStats();
+    },
+
+    updateStatus: function (index, status) {
+        this.leads[index].status = status;
         this.renderLeads();
     },
 
-    renderLeads() {
-        const container = document.getElementById('leadsList');
-        container.innerHTML = '';
-        leads.forEach((lead, index) => {
-            const div = document.createElement('div');
-            div.className = 'lead-item';
-            div.innerHTML = `
-                <strong>${lead['Business Name']}</strong><br>
-                ${lead.combinedAddress}<br>
-                Website: ${lead['Website']}<br>
-                Status: ${lead.status} 
-                <button onclick="app.promptEmail(${index})">Has Email</button>
-            `;
-            container.appendChild(div);
-        });
-    },
-
-    promptEmail(index) {
-        const email = prompt(`Enter email for ${leads[index]['Business Name']}:`);
+    promptEmail: function (index) {
+        const email = prompt("Enter email for " + this.leads[index]['Business name']);
         if (email) {
-            leads[index].email = email;
-            this.updateStats();
-        }
-    },
-
-    async processLeads() {
-        if (!leads.length) return alert('Upload CSV first!');
-        const loading = document.getElementById('loadingState');
-        loading.style.display = 'block';
-
-        for (let i = 0; i < leads.length; i++) {
-            const lead = leads[i];
-
-            // Simulate website check
-            await new Promise(r => setTimeout(r, 200)); // simulate delay
-            lead.status = Math.random() < 0.7 ? 'Open' : 'Closed';
-
-            // update progress
-            const progress = Math.round(((i+1)/leads.length)*100);
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').innerText = `${i+1}/${leads.length}`;
+            this.leads[index].email = email;
+            this.leads[index].status = 'email-found';
             this.renderLeads();
-            this.updateStats();
         }
-
-        loading.style.display = 'none';
-        alert('Processing complete!');
     },
 
-    updateStats() {
-        const open = leads.filter(l => l.status === 'Open').length;
-        const emailFound = leads.filter(l => l.email).length;
+    updateStats: function () {
+        const totalLeads = this.leads.length;
+        const openLeads = this.leads.filter(l => l.status === 'open').length;
+        const contactedCount = this.leads.filter(l => l.status === 'contacted').length;
+        const emailFoundCount = this.leads.filter(l => l.status === 'email-found').length;
+        const noEmailCount = this.leads.filter(l => l.status === 'no-email').length;
+        const closedCount = this.leads.filter(l => l.status === 'closed').length;
 
-        document.getElementById('openLeads').innerText = open;
-        document.getElementById('emailFoundCount').innerText = emailFound;
+        document.getElementById('totalLeads').textContent = totalLeads;
+        document.getElementById('openLeads').textContent = openLeads;
+        document.getElementById('contactedCount').textContent = contactedCount;
+        document.getElementById('emailFoundCount').textContent = emailFoundCount;
+        document.getElementById('noEmailCount').textContent = noEmailCount;
+        document.getElementById('closedCount').textContent = closedCount;
+
+        document.getElementById('openBadge').textContent = openLeads;
+        document.getElementById('contactedBadge').textContent = contactedCount;
+        document.getElementById('emailFoundBadge').textContent = emailFoundCount;
+        document.getElementById('noEmailBadge').textContent = noEmailCount;
+        document.getElementById('closedBadge').textContent = closedCount;
     },
 
-    exportToExcel() {
-        if (!leads.length) return alert('No leads to export!');
+    exportToExcel: function () {
         let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ['Business Name', 'combinedAddress', 'Website', 'Status', 'Email'];
-        csvContent += headers.join(',') + '\n';
-        leads.forEach(l => {
-            csvContent += `${l['Business Name']},${l.combinedAddress},${l['Website']},${l.status},${l.email || ''}\n`;
+        const headers = Object.keys(this.leads[0] || {});
+        csvContent += headers.join(",") + "\r\n";
+        this.leads.forEach(lead => {
+            const row = headers.map(h => lead[h] || '').join(",");
+            csvContent += row + "\r\n";
         });
+
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "leads_export.csv");
+        link.setAttribute("download", "leads.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 };
-
-// Event listeners
-document.getElementById('csvFileInput').addEventListener('change', (e) => app.handleCSVUpload(e));
-document.getElementById('processBtn').addEventListener('click', () => app.processLeads());
-document.getElementById('exportBtn').addEventListener('click', () => app.exportToExcel());
-
-document.getElementById('searchInput').addEventListener('input', (e) => {
-    const search = e.target.value.toLowerCase();
-    const filtered = leads.filter(l => l['Business Name'].toLowerCase().includes(search));
-    const container = document.getElementById('leadsList');
-    container.innerHTML = '';
-    filtered.forEach((lead, index) => {
-        const div = document.createElement('div');
-        div.className = 'lead-item';
-        div.innerHTML = `
-            <strong>${lead['Business Name']}</strong><br>
-            ${lead.combinedAddress}<br>
-            Website: ${lead['Website']}<br>
-            Status: ${lead.status} 
-            <button onclick="app.promptEmail(${index})">Has Email</button>
-        `;
-        container.appendChild(div);
-    });
-});
