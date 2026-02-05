@@ -1,147 +1,107 @@
-const app = {
+let app = {
     leads: [],
+    filteredLeads: [],
+    csvData: null,
 
-    handleCSVUpload: function(event) {
+    handleCSVUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            const csvText = e.target.result;
-            this.parseCSV(csvText);
+            const text = e.target.result;
+            this.csvData = this.parseCSV(text);
+            this.filteredLeads = [...this.csvData];
+            this.updateStats();
+            this.renderLeads();
         };
         reader.readAsText(file);
     },
 
-    parseCSV: function(csvText) {
+    parseCSV(csvText) {
         const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-
-        const websiteIndex = headers.indexOf('Website');
-        const nameIndex = headers.indexOf('Business name');
-        const addressIndex = headers.indexOf('Address');
-        const cityStateIndex = headers.indexOf('City, State');
-
-        if (websiteIndex === -1 || nameIndex === -1 || addressIndex === -1 || cityStateIndex === -1) {
-            alert('CSV must contain columns: "Business name", "Address", "City, State", "Website"');
-            return;
-        }
-
-        this.leads = lines.slice(1).map(line => {
-            const values = line.split(',').map(v => v.replace(/"/g, '').trim());
-            return {
-                name: values[nameIndex] || '',
-                address: (values[addressIndex] || '') + ', ' + (values[cityStateIndex] || ''),
-                website: values[websiteIndex] || '',
-                status: 'open',
-                email: ''
-            };
+        const headers = lines[0].split(',').map(h => h.trim());
+        return lines.slice(1).map(line => {
+            const cols = line.split(',');
+            let obj = {};
+            headers.forEach((h, idx) => {
+                obj[h] = cols[idx] ? cols[idx].trim() : '';
+            });
+            return obj;
         });
-
-        // Automatically start processing CSV
-        this.processWebsites();
     },
 
-    processWebsites: async function() {
-        if (this.leads.length === 0) return;
+    processLeads() {
+        if (!this.filteredLeads || !this.filteredLeads.length) return;
 
         document.getElementById('loadingState').style.display = 'block';
-        document.getElementById('emptyState').style.display = 'none';
+        const total = this.filteredLeads.length;
 
-        for (let i = 0; i < this.leads.length; i++) {
-            const lead = this.leads[i];
-
-            // Simulated website check: if blank or invalid, mark as no-email
-            if (!lead.website || !lead.website.includes('.')) {
-                lead.status = 'no-email';
-            } else {
-                lead.status = 'open';
+        this.filteredLeads.forEach((lead, idx) => {
+            // Simulate website check
+            lead.status = Math.random() > 0.5 ? 'Open' : 'Down';
+            if (lead.status === 'Down') {
+                const hasEmail = confirm(`Enter email for ${lead['Business Name']}?`);
+                if (hasEmail) {
+                    lead.email = prompt(`Email for ${lead['Business Name']}:`) || '';
+                    lead.status = 'Email Found';
+                } else {
+                    lead.email = '';
+                    lead.status = 'No Email';
+                }
             }
 
-            // Prompt for email if website is down / no email
-            if (lead.status === 'no-email') {
-                const email = prompt(`Enter email for ${lead.name}:`);
-                lead.email = email || '';
-            }
-
-            this.updateProgress(i + 1, this.leads.length);
-        }
+            const progressPercent = Math.round(((idx + 1) / total) * 100);
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+            document.getElementById('progressText').innerText = `Processing ${idx + 1}/${total}`;
+        });
 
         document.getElementById('loadingState').style.display = 'none';
-        this.renderLeads();
         this.updateStats();
+        this.renderLeads();
     },
 
-    updateProgress: function(current, total) {
-        const percent = Math.round((current / total) * 100);
-        document.getElementById('progressFill').style.width = percent + '%';
-        document.getElementById('progressText').innerText = `${current} of ${total} processed`;
-    },
-
-    renderLeads: function() {
-        const leadsList = document.getElementById('leadsList');
-        leadsList.innerHTML = '';
-
-        const filteredLeads = this.leads.filter(lead => lead.status === 'open');
-
-        if (filteredLeads.length === 0) {
-            leadsList.innerHTML = '<p>No leads in this category.</p>';
-            return;
-        }
-
-        filteredLeads.forEach((lead, idx) => {
-            const div = document.createElement('div');
-            div.className = 'lead-item';
-            div.innerHTML = `
-                <strong>${lead.name}</strong><br>
-                ${lead.address}<br>
-                Website: ${lead.website || 'N/A'}<br>
-                Email: ${lead.email || 'N/A'}
-            `;
-            leadsList.appendChild(div);
-        });
-    },
-
-    updateStats: function() {
-        const total = this.leads.length;
-        const open = this.leads.filter(l => l.status === 'open').length;
-        const noEmail = this.leads.filter(l => l.status === 'no-email').length;
-        const contacted = this.leads.filter(l => l.status === 'contacted').length;
-        const emailFound = this.leads.filter(l => l.email).length;
+    updateStats() {
+        const total = this.filteredLeads.length;
+        const open = this.filteredLeads.filter(l => l.status === 'Open').length;
+        const contacted = this.filteredLeads.filter(l => l.status === 'Contacted').length;
+        const emailFound = this.filteredLeads.filter(l => l.status === 'Email Found').length;
+        const noEmail = this.filteredLeads.filter(l => l.status === 'No Email').length;
 
         document.getElementById('totalLeads').innerText = total;
         document.getElementById('openLeads').innerText = open;
         document.getElementById('contactedCount').innerText = contacted;
         document.getElementById('emailFoundCount').innerText = emailFound;
         document.getElementById('noEmailCount').innerText = noEmail;
-
-        // Update tab badges
-        document.getElementById('openBadge').innerText = open;
-        document.getElementById('contactedBadge').innerText = contacted;
-        document.getElementById('emailFoundBadge').innerText = emailFound;
-        document.getElementById('noEmailBadge').innerText = noEmail;
     },
 
-    exportToExcel: function() {
-        if (!this.leads.length) return alert('No leads to export!');
-
-        const rows = [
-            ['Business name', 'Address', 'Website', 'Email', 'Status']
-        ];
-
-        this.leads.forEach(lead => {
-            rows.push([lead.name, lead.address, lead.website, lead.email, lead.status]);
+    renderLeads() {
+        const container = document.getElementById('leadsList');
+        container.innerHTML = '';
+        this.filteredLeads.forEach(lead => {
+            const div = document.createElement('div');
+            div.className = 'lead-item';
+            div.innerHTML = `<span>${lead['Business Name']} - ${lead['Address']} ${lead['City, State']}</span><span>${lead.status}</span>`;
+            container.appendChild(div);
         });
+    },
 
-        const csvContent = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    exportToExcel() {
+        if (!this.filteredLeads || !this.filteredLeads.length) return;
+        const csvContent = [
+            Object.keys(this.filteredLeads[0]).join(','),
+            ...this.filteredLeads.map(l => Object.values(l).join(','))
+        ].join('\n');
+
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'leads_export.csv');
-        document.body.appendChild(link);
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "leads_export.csv";
         link.click();
-        document.body.removeChild(link);
     }
 };
+
+// Event listeners
+document.getElementById('csvFileInput').addEventListener('change', (e) => app.handleCSVUpload(e));
+document.getElementById('processCSVBtn').addEventListener('click', () => app.processLeads());
+document.getElementById('exportBtn').addEventListener('click', () => app.exportToExcel());
