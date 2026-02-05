@@ -36,7 +36,7 @@ const app = {
         const urls = this.leads.map(l => l['Website']).filter(Boolean);
         if (urls.length === 0) return;
 
-        const response = await fetch('/api/checkWebsites', {
+        const response = await fetch('/api/checkWebsite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ urls })
