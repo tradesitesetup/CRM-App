@@ -6,57 +6,59 @@ body {
 }
 
 .container {
-    width: 90%;
-    max-width: 1000px;
-    margin: 20px auto;
-    background: #fff;
+    max-width: 900px;
+    margin: auto;
     padding: 20px;
-    border-radius: 8px;
+    background: #fff;
 }
 
 header h1 {
     margin: 0;
-}
-
-.subtitle {
-    color: #555;
+    font-size: 2em;
 }
 
 .controls {
-    display: flex;
-    gap: 10px;
     margin: 20px 0;
-    align-items: center;
 }
 
 .btn {
-    padding: 8px 15px;
-    border: none;
-    border-radius: 5px;
+    padding: 10px 15px;
+    margin-right: 10px;
     cursor: pointer;
-    color: #fff;
 }
 
-.btn-success { background: #28a745; }
-.btn-process { background: #007bff; }
-.btn-export { background: #17a2b8; }
-
-.filter-group input {
-    padding: 6px 10px;
-    width: 200px;
+.file-upload-btn input[type="file"] {
+    display: none;
 }
 
 .stats {
     display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .stat-item {
     background: #eee;
     padding: 10px;
-    border-radius: 5px;
+    flex: 1;
+    min-width: 120px;
     text-align: center;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.tab {
+    padding: 10px 15px;
+    cursor: pointer;
+    background: #ddd;
+}
+
+.tab.active {
+    background: #bbb;
 }
 
 .leads-container {
@@ -64,36 +66,32 @@ header h1 {
 }
 
 .lead-item {
+    background: #f9f9f9;
     padding: 10px;
-    border-bottom: 1px solid #ccc;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+}
+
+.lead-actions button {
+    margin-right: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.loading {
+    display: none;
+    text-align: center;
 }
 
 .progress-bar {
+    background: #ccc;
+    height: 10px;
     width: 100%;
-    background: #ddd;
-    border-radius: 5px;
-    overflow: hidden;
-    margin: 5px 0;
+    margin-top: 10px;
 }
 
 .progress-fill {
+    background: green;
     height: 10px;
-    background: #28a745;
-    width: 0%;
-}
-
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #007bff;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    animation: spin 1s linear infinite;
-    display: inline-block;
-    margin-right: 10px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    width: 0;
 }
