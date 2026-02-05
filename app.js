@@ -1,107 +1,136 @@
-let app = {
-    leads: [],
-    filteredLeads: [],
-    csvData: null,
+let leads = [];
+
+const app = {
+    csvFile: null,
 
     handleCSVUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
+        this.csvFile = file;
+        this.readCSV(file);
+    },
 
+    readCSV(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
             const text = e.target.result;
-            this.csvData = this.parseCSV(text);
-            this.filteredLeads = [...this.csvData];
-            this.updateStats();
-            this.renderLeads();
+            this.parseCSV(text);
         };
         reader.readAsText(file);
     },
 
-    parseCSV(csvText) {
-        const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-        const headers = lines[0].split(',').map(h => h.trim());
-        return lines.slice(1).map(line => {
-            const cols = line.split(',');
+    parseCSV(text) {
+        const lines = text.split(/\r?\n/);
+        const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+        leads = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.replace(/"/g,'').trim());
             let obj = {};
-            headers.forEach((h, idx) => {
-                obj[h] = cols[idx] ? cols[idx].trim() : '';
-            });
+            headers.forEach((h, i) => obj[h] = values[i] || '');
+            obj.combinedAddress = `${obj['Address'] || ''} ${obj['City, State'] || ''}`.trim();
+            obj.status = 'Open';
+            obj.email = '';
             return obj;
         });
-    },
 
-    processLeads() {
-        if (!this.filteredLeads || !this.filteredLeads.length) return;
-
-        document.getElementById('loadingState').style.display = 'block';
-        const total = this.filteredLeads.length;
-
-        this.filteredLeads.forEach((lead, idx) => {
-            // Simulate website check
-            lead.status = Math.random() > 0.5 ? 'Open' : 'Down';
-            if (lead.status === 'Down') {
-                const hasEmail = confirm(`Enter email for ${lead['Business Name']}?`);
-                if (hasEmail) {
-                    lead.email = prompt(`Email for ${lead['Business Name']}:`) || '';
-                    lead.status = 'Email Found';
-                } else {
-                    lead.email = '';
-                    lead.status = 'No Email';
-                }
-            }
-
-            const progressPercent = Math.round(((idx + 1) / total) * 100);
-            document.getElementById('progressFill').style.width = progressPercent + '%';
-            document.getElementById('progressText').innerText = `Processing ${idx + 1}/${total}`;
-        });
-
-        document.getElementById('loadingState').style.display = 'none';
-        this.updateStats();
+        document.getElementById('totalLeads').innerText = leads.length;
         this.renderLeads();
-    },
-
-    updateStats() {
-        const total = this.filteredLeads.length;
-        const open = this.filteredLeads.filter(l => l.status === 'Open').length;
-        const contacted = this.filteredLeads.filter(l => l.status === 'Contacted').length;
-        const emailFound = this.filteredLeads.filter(l => l.status === 'Email Found').length;
-        const noEmail = this.filteredLeads.filter(l => l.status === 'No Email').length;
-
-        document.getElementById('totalLeads').innerText = total;
-        document.getElementById('openLeads').innerText = open;
-        document.getElementById('contactedCount').innerText = contacted;
-        document.getElementById('emailFoundCount').innerText = emailFound;
-        document.getElementById('noEmailCount').innerText = noEmail;
     },
 
     renderLeads() {
         const container = document.getElementById('leadsList');
         container.innerHTML = '';
-        this.filteredLeads.forEach(lead => {
+        leads.forEach((lead, index) => {
             const div = document.createElement('div');
             div.className = 'lead-item';
-            div.innerHTML = `<span>${lead['Business Name']} - ${lead['Address']} ${lead['City, State']}</span><span>${lead.status}</span>`;
+            div.innerHTML = `
+                <strong>${lead['Business Name']}</strong><br>
+                ${lead.combinedAddress}<br>
+                Website: ${lead['Website']}<br>
+                Status: ${lead.status} 
+                <button onclick="app.promptEmail(${index})">Has Email</button>
+            `;
             container.appendChild(div);
         });
     },
 
-    exportToExcel() {
-        if (!this.filteredLeads || !this.filteredLeads.length) return;
-        const csvContent = [
-            Object.keys(this.filteredLeads[0]).join(','),
-            ...this.filteredLeads.map(l => Object.values(l).join(','))
-        ].join('\n');
+    promptEmail(index) {
+        const email = prompt(`Enter email for ${leads[index]['Business Name']}:`);
+        if (email) {
+            leads[index].email = email;
+            this.updateStats();
+        }
+    },
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    async processLeads() {
+        if (!leads.length) return alert('Upload CSV first!');
+        const loading = document.getElementById('loadingState');
+        loading.style.display = 'block';
+
+        for (let i = 0; i < leads.length; i++) {
+            const lead = leads[i];
+
+            // Simulate website check
+            await new Promise(r => setTimeout(r, 200)); // simulate delay
+            lead.status = Math.random() < 0.7 ? 'Open' : 'Closed';
+
+            // update progress
+            const progress = Math.round(((i+1)/leads.length)*100);
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').innerText = `${i+1}/${leads.length}`;
+            this.renderLeads();
+            this.updateStats();
+        }
+
+        loading.style.display = 'none';
+        alert('Processing complete!');
+    },
+
+    updateStats() {
+        const open = leads.filter(l => l.status === 'Open').length;
+        const emailFound = leads.filter(l => l.email).length;
+
+        document.getElementById('openLeads').innerText = open;
+        document.getElementById('emailFoundCount').innerText = emailFound;
+    },
+
+    exportToExcel() {
+        if (!leads.length) return alert('No leads to export!');
+        let csvContent = "data:text/csv;charset=utf-8,";
+        const headers = ['Business Name', 'combinedAddress', 'Website', 'Status', 'Email'];
+        csvContent += headers.join(',') + '\n';
+        leads.forEach(l => {
+            csvContent += `${l['Business Name']},${l.combinedAddress},${l['Website']},${l.status},${l.email || ''}\n`;
+        });
+        const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "leads_export.csv";
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "leads_export.csv");
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     }
 };
 
 // Event listeners
 document.getElementById('csvFileInput').addEventListener('change', (e) => app.handleCSVUpload(e));
-document.getElementById('processCSVBtn').addEventListener('click', () => app.processLeads());
+document.getElementById('processBtn').addEventListener('click', () => app.processLeads());
 document.getElementById('exportBtn').addEventListener('click', () => app.exportToExcel());
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    const search = e.target.value.toLowerCase();
+    const filtered = leads.filter(l => l['Business Name'].toLowerCase().includes(search));
+    const container = document.getElementById('leadsList');
+    container.innerHTML = '';
+    filtered.forEach((lead, index) => {
+        const div = document.createElement('div');
+        div.className = 'lead-item';
+        div.innerHTML = `
+            <strong>${lead['Business Name']}</strong><br>
+            ${lead.combinedAddress}<br>
+            Website: ${lead['Website']}<br>
+            Status: ${lead.status} 
+            <button onclick="app.promptEmail(${index})">Has Email</button>
+        `;
+        container.appendChild(div);
+    });
+});
