@@ -19,9 +19,9 @@
                 <input type="file" id="csvFileInput" accept=".csv">
             </label>
 
-            <button class="btn btn-export" id="exportBtn">
-                📊 Export to Excel
-            </button>
+            <button class="btn btn-primary" id="processCSVBtn">⚡ Process CSV</button>
+
+            <button class="btn btn-export" id="exportBtn">📊 Export to Excel</button>
             
             <div class="filter-group">
                 <input type="search" id="searchInput" placeholder="Search business names...">
@@ -85,7 +85,7 @@
             <div class="leads-header">
                 <span id="currentTabLabel">Open Leads</span>
             </div>
-            <div class="loading" id="loadingState">
+            <div class="loading" id="loadingState" style="display:none;">
                 <div class="spinner"></div>
                 <div id="loadingText">Processing...</div>
                 <div class="progress-bar">
