@@ -1,21 +1,18 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    const { urls } = req.body;
-    const results = [];
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ status: "error", message: "No URL provided" });
 
-    for (const url of urls) {
-      try {
-        const response = await fetch(url, { method: 'HEAD', timeout: 5000 });
-        results.push({ url, status: response.ok ? 'UP' : 'DOWN' });
-      } catch (err) {
-        results.push({ url, status: 'DOWN' });
-      }
+  try {
+    // Try HEAD request first to minimize data
+    const response = await fetch(url, { method: "HEAD" });
+    if (response.ok) {
+      res.status(200).json({ status: "up" });
+    } else {
+      res.status(200).json({ status: "down" });
     }
-
-    res.status(200).json(results);
-  } else {
-    res.status(405).json({ error: 'Method not allowed' });
+  } catch (err) {
+    res.status(200).json({ status: "down" });
   }
 }
