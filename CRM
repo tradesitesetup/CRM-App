@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Finder CRM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .file-upload-btn {
+            position: relative;
+            overflow: hidden;
+            background: #10b981;
+            color: white;
+        }
+
+        .file-upload-btn:hover {
+            background: #059669;
+        }
+
+        .file-upload-btn input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        select, input[type="search"] {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+
+        input[type="search"] {
+            width: 250px;
+        }
+
+        .stats {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .tabs {
+            background: white;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 16px 24px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #718096;
+            cursor: pointer;
+            text-align: center;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: #f7fafc;
+        }
+
+        .tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-badge {
+            display: inline-block;
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 8px;
+            font-weight: 600;
+        }
+
+        .tab.active .tab-badge {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .leads-container {
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .leads-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .lead-card {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 20px 24px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .lead-card:hover {
+            background: #f7fafc;
+        }
+
+        .lead-card:last-child {
+            border-bottom: none;
+        }
+
+        .lead-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .lead-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .lead-info {
+            flex: 1;
+        }
+
+        .lead-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 4px;
+        }
+
+        .lead-email {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        .lead-website {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        .lead-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-down {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-working {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-not-contacted {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-contacted {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-replied {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-not-interested {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-sold {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-not-applicable {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .move-dropdown {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .move-dropdown:hover {
+            border-color: #3b82f6;
+        }
+
+        .move-dropdown:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .lead-details {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            display: none;
+        }
+
+        .lead-details.expanded {
+            display: block;
+        }
+
+        .detail-section {
+            margin-bottom: 16px;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .status-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-option {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .status-option:hover {
+            border-color: #3b82f6;
+        }
+
+        .status-option.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .status-option.sold {
+            border-color: #10b981;
+        }
+
+        .status-option.sold:hover {
+            border-color: #059669;
+        }
+
+        .status-option.sold.active {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .empty-state {
+            padding: 60px 24px;
+            text-align: center;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            display: none;
+            padding: 40px;
+            text-align: center;
+            color: #718096;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .sale-amount {
+            color: #10b981;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background: #e2e8f0;
+            border-radius: 4px;
+            height: 8px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #718096;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 16px;
+        }
+
+        .modal-content {
+            margin-bottom: 20px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-cancel:hover {
+            background: #cbd5e0;
+        }
+
+        .upload-info {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+            color: #1e40af;
+            margin-bottom: 16px;
+        }
+
+        .upload-info strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .filter-group {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            input[type="search"] {
+                width: 100%;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .lead-header {
+                flex-wrap: wrap;
+            }
+
+            .lead-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .tab {
+                font-size: 13px;
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lead Finder CRM</h1>
+            <p class="subtitle">Upload CSV data to find businesses with down websites</p>
+        </header>
+
+        <div class="controls">
+            <label class="btn file-upload-btn">
+                📁 Upload CSV File
+                <input type="file" id="csvFileInput" accept=".csv" onchange="app.handleCSVUpload(event)">
+            </label>
+            
+            <div class="filter-group">
+                <input type="search" id="searchInput" placeholder="Search business names...">
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Leads</span>
+                <span class="stat-value" id="totalLeads">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Open Leads</span>
+                <span class="stat-value" id="openLeads">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Contacted</span>
+                <span class="stat-value" id="contactedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Replied</span>
+                <span class="stat-value" id="repliedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Closed</span>
+                <span class="stat-value" id="closedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Sales</span>
+                <span class="stat-value" id="salesCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total Revenue</span>
+                <span class="stat-value" id="totalRevenue">$0</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="open" id="openTab">
+                Open <span class="tab-badge" id="openBadge">0</span>
+            </div>
+            <div class="tab" data-tab="contacted" id="contactedTab">
+                Contacted <span class="tab-badge" id="contactedBadge">0</span>
+            </div>
+            <div class="tab" data-tab="closed" id="closedTab">
+                Closed <span class="tab-badge" id="closedBadge">0</span>
+            </div>
+        </div>
+
+        <div class="leads-container">
+            <div class="leads-header">
+                <span id="currentTabLabel">Open Leads</span>
+            </div>
+            
+            <div class="loading" id="loadingState">
+                <div class="spinner"></div>
+                <div id="loadingText">Processing...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText"></div>
+            </div>
+
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-title">No leads yet</div>
+                <p>Upload a CSV file to find leads with down websites</p>
+            </div>
+
+            <div id="leadsList"></div>
+        </div>
+    </div>
+
+    <!-- Sale Amount Modal -->
+    <div class="modal-overlay" id="saleModal">
+        <div class="modal">
+            <div class="modal-title">Enter Sale Amount</div>
+            <div class="modal-content">
+                <label for="saleAmountInput">How much was the sale?</label>
+                <input 
+                    type="number" 
+                    id="saleAmountInput" 
+                    class="modal-input"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                >
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="app.closeSaleModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="app.confirmSale()">Confirm Sale</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Summary Modal -->
+    <div class="modal-overlay" id="summaryModal">
+        <div class="modal">
+            <div class="modal-title">Processing Complete</div>
+            <div class="modal-content">
+                <div class="upload-info">
+                    <strong>Import Summary:</strong>
+                    <div id="csvSummary"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="app.closeSummaryModal()">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================================
+        // CSV PARSER
+        // Parses CSV files and handles quoted fields
+        // ===========================================
+        
+        class CSVParser {
+            /**
+             * Parse CSV text into array of rows
+             * Handles quoted fields with commas
+             */
+            parse(csvText) {
+                const lines = csvText.split('\n').map(line => line.trim()).filter(line => line);
+                if (lines.length === 0) return [];
+
+                const rows = lines.map(line => {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.trim());
+                    return result;
+                });
+
+                return rows;
+            }
+
+            /**
+             * Detect which column contains business names
+             * Looks for keywords like 'business', 'company', 'name'
+             */
+            detectBusinessNameColumn(headers) {
+                const keywords = ['business', 'company', 'name'];
+                
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(keyword => header.includes(keyword))) {
+                        return i;
+                    }
+                }
+                
+                return 0; // Default to first column
+            }
+
+            /**
+             * Detect which column contains email addresses
+             */
+            detectEmailColumn(headers) {
+                const keywords = ['email', 'e-mail', 'mail'];
+                
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(keyword => header.includes(keyword))) {
+                        return i;
+                    }
+                }
+                
+                return -1;
+            }
+
+            /**
+             * Detect which column contains website URLs
+             */
+            detectWebsiteColumn(headers) {
+                const keywords = ['website', 'url', 'site', 'web'];
+                
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(keyword => header.includes(keyword))) {
+                        return i;
+                    }
+                }
+                
+                return -1;
+            }
+
+            /**
+             * Check if string is a valid email
+             */
+            isValidEmail(email) {
+                if (!email) return false;
+                const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return pattern.test(email.trim());
+            }
+
+            /**
+             * Check if string is a valid URL
+             */
+            isValidURL(url) {
+                if (!url) return false;
+                const pattern = /(https?:\/\/|www\.|[a-zA-Z0-9-]+\.(com|org|net|io|co|edu|gov))/i;
+                return pattern.test(url.trim());
+            }
+
+            /**
+             * Normalize URL to ensure it has protocol
+             */
+            normalizeURL(url) {
+                if (!url) return '';
+                url = url.trim();
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    return 'https://' + url;
+                }
+                return url;
+            }
+        }
+
+        // ===========================================
+        // WEBSITE CHECKER
+        // Verifies if websites are working or down
+        // Uses HTTP requests with timeout handling
+        // ===========================================
+
+        class WebsiteChecker {
+            constructor() {
+                this.timeout = 10000; // 10 second timeout
+            }
+
+            /**
+             * Check if a website is working or down
+             * Returns: { status: 'working' | 'down', details: string }
+             * 
+             * Classification:
+             * - DOWN: timeout, DNS failure, 4xx/5xx errors
+             * - WORKING: successful response (2xx, 3xx)
+             */
+            async checkWebsite(url) {
+                try {
+                    // Create abort controller for timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+                    // Attempt HTTP request
+                    const response = await fetch(url, {
+                        method: 'HEAD', // HEAD request to avoid downloading content
+                        mode: 'no-cors', // Bypass CORS restrictions
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    // no-cors mode always returns status 0 if successful
+                    // We can only detect complete failures (timeout, DNS, network)
+                    return {
+                        status: 'working',
+                        details: 'Website responded'
+                    };
+
+                } catch (error) {
+                    // Categorize the error
+                    if (error.name === 'AbortError') {
+                        return {
+                            status: 'down',
+                            details: 'Timeout - website did not respond'
+                        };
+                    } else if (error.message.includes('Failed to fetch')) {
+                        return {
+                            status: 'down',
+                            details: 'DNS failure or network error'
+                        };
+                    } else {
+                        return {
+                            status: 'down',
+                            details: 'Connection failed'
+                        };
+                    }
+                }
+            }
+
+            /**
+             * Check multiple websites with progress updates
+             */
+            async checkMultipleWebsites(urls, onProgress) {
+                const results = [];
+                
+                for (let i = 0; i < urls.length; i++) {
+                    const result = await this.checkWebsite(urls[i]);
+                    results.push(result);
+                    
+                    if (onProgress) {
+                        onProgress(i + 1, urls.length);
+                    }
+                }
+                
+                return results;
+            }
+        }
+
+        // ===========================================
+        // CSV PROCESSOR
+        // Main logic for filtering and processing CSV data
+        // ===========================================
+
+        class CSVProcessor {
+            constructor() {
+                this.parser = new CSVParser();
+                this.checker = new WebsiteChecker();
+            }
+
+            /**
+             * Process uploaded CSV file
+             * 
+             * Steps:
+             * 1. Parse CSV
+             * 2. Filter: must have website URL
+             * 3. Filter: must have valid email
+             * 4. Check website status (working vs down)
+             * 5. Filter: only keep "down" websites
+             * 6. Return as leads
+             */
+            async processCSV(csvText, onProgress) {
+                const rows = this.parser.parse(csvText);
+                
+                if (rows.length < 2) {
+                    return { 
+                        leads: [], 
+                        summary: { 
+                            totalRows: 0, 
+                            withWebsite: 0, 
+                            withEmail: 0, 
+                            checkedWebsites: 0,
+                            downWebsites: 0,
+                            finalLeads: 0 
+                        } 
+                    };
+                }
+
+                const headers = rows[0];
+                const dataRows = rows.slice(1);
+
+                // Detect columns
+                const businessCol = this.parser.detectBusinessNameColumn(headers);
+                const emailCol = this.parser.detectEmailColumn(headers);
+                const websiteCol = this.parser.detectWebsiteColumn(headers);
+
+                if (websiteCol === -1) {
+                    throw new Error('No website column found in CSV. Please ensure your CSV has a "Website" or "URL" column.');
+                }
+
+                if (emailCol === -1) {
+                    throw new Error('No email column found in CSV. Please ensure your CSV has an "Email" column.');
+                }
+
+                // STEP 1 & 2: Filter for rows with website AND email
+                const filteredRows = dataRows.filter(row => {
+                    const hasWebsite = this.parser.isValidURL(row[websiteCol]);
+                    const hasEmail = this.parser.isValidEmail(row[emailCol]);
+                    return hasWebsite && hasEmail;
+                });
+
+                const summary = {
+                    totalRows: dataRows.length,
+                    withWebsite: filteredRows.length,
+                    withEmail: filteredRows.length,
+                    checkedWebsites: 0,
+                    downWebsites: 0,
+                    finalLeads: 0
+                };
+
+                // STEP 3: Check website status for each filtered row
+                const leads = [];
+                
+                for (let i = 0; i < filteredRows.length; i++) {
+                    const row = filteredRows[i];
+                    const website = this.parser.normalizeURL(row[websiteCol]);
+                    
+                    // Check website status
+                    const websiteStatus = await this.checker.checkWebsite(website);
+                    summary.checkedWebsites++;
+
+                    // Update progress
+                    if (onProgress) {
+                        onProgress(i + 1, filteredRows.length);
+                    }
+
+                    // STEP 4: Only include if website is DOWN
+                    if (websiteStatus.status === 'down') {
+                        summary.downWebsites++;
+                        
+                        leads.push({
+                            id: Date.now() + Math.random(),
+                            businessName: row[businessCol] || 'Unknown Business',
+                            email: row[emailCol],
+                            website: website,
+                            websiteStatus: 'down',
+                            websiteDetails: websiteStatus.details,
+                            status: 'not-contacted',
+                            moveToAction: 'open',
+                            notes: '',
+                            dateAdded: new Date().toISOString(),
+                            saleAmount: 0
+                        });
+                    }
+                }
+
+                summary.finalLeads = leads.length;
+                
+                return { leads, summary };
+            }
+        }
+
+        // ===========================================
+        // STATE MANAGEMENT
+        // Manages leads in memory for the session
+        // ===========================================
+
+        class CRMState {
+            constructor() {
+                this.leads = [];
+                this.filteredLeads = [];
+                this.expandedLeads = new Set();
+                this.currentTab = 'open';
+            }
+
+            addLeads(newLeads) {
+                // Prevent duplicates based on email
+                const existingEmails = new Set(this.leads.map(l => l.email));
+                const uniqueLeads = newLeads.filter(lead => !existingEmails.has(lead.email));
+                
+                this.leads = [...this.leads, ...uniqueLeads];
+                this.filteredLeads = [...this.leads];
+                return uniqueLeads.length;
+            }
+
+            updateLead(id, updates) {
+                const index = this.leads.findIndex(l => l.id === id);
+                if (index !== -1) {
+                    this.leads[index] = { ...this.leads[index], ...updates };
+                    return true;
+                }
+                return false;
+            }
+
+            setTab(tab) {
+                this.currentTab = tab;
+            }
+
+            filterLeads(searchQuery) {
+                this.filteredLeads = this.leads.filter(lead => {
+                    const tabMatch = lead.moveToAction === this.currentTab;
+                    const searchMatch = !searchQuery || 
+                        lead.businessName.toLowerCase().includes(searchQuery.toLowerCase());
+                    return tabMatch && searchMatch;
+                });
+            }
+
+            getStats() {
+                const openLeads = this.leads.filter(l => l.moveToAction === 'open');
+                const contactedLeads = this.leads.filter(l => l.moveToAction === 'contacted');
+                const closedLeads = this.leads.filter(l => l.moveToAction === 'closed');
+                const soldLeads = closedLeads.filter(l => l.status === 'sold');
+                const repliedLeads = this.leads.filter(l => l.status === 'replied');
+                const totalRevenue = soldLeads.reduce((sum, lead) => sum + (lead.saleAmount || 0), 0);
+                
+                return {
+                    total: this.leads.length,
+                    open: openLeads.length,
+                    contacted: contactedLeads.length,
+                    closed: closedLeads.length,
+                    replied: repliedLeads.length,
+                    sales: soldLeads.length,
+                    totalRevenue: totalRevenue
+                };
+            }
+
+            toggleExpanded(id) {
+                if (this.expandedLeads.has(id)) {
+                    this.expandedLeads.delete(id);
+                } else {
+                    this.expandedLeads.add(id);
+                }
+            }
+
+            isExpanded(id) {
+                return this.expandedLeads.has(id);
+            }
+        }
+
+        // ===========================================
+        // UI CONTROLLER
+        // Manages user interface and interactions
+        // ===========================================
+
+        class CRMApp {
+            constructor() {
+                this.state = new CRMState();
+                this.processor = new CSVProcessor();
+                this.pendingSaleLeadId = null;
+                this.init();
+            }
+
+            init() {
+                this.cacheElements();
+                this.attachEventListeners();
+                this.render();
+            }
+
+            cacheElements() {
+                this.els = {
+                    searchInput: document.getElementById('searchInput'),
+                    leadsList: document.getElementById('leadsList'),
+                    emptyState: document.getElementById('emptyState'),
+                    loadingState: document.getElementById('loadingState'),
+                    loadingText: document.getElementById('loadingText'),
+                    progressFill: document.getElementById('progressFill'),
+                    progressText: document.getElementById('progressText'),
+                    currentTabLabel: document.getElementById('currentTabLabel'),
+                    openTab: document.getElementById('openTab'),
+                    contactedTab: document.getElementById('contactedTab'),
+                    closedTab: document.getElementById('closedTab'),
+                    openBadge: document.getElementById('openBadge'),
+                    contactedBadge: document.getElementById('contactedBadge'),
+                    closedBadge: document.getElementById('closedBadge'),
+                    totalLeads: document.getElementById('totalLeads'),
+                    openLeads: document.getElementById('openLeads'),
+                    contactedCount: document.getElementById('contactedCount'),
+                    repliedCount: document.getElementById('repliedCount'),
+                    closedCount: document.getElementById('closedCount'),
+                    salesCount: document.getElementById('salesCount'),
+                    totalRevenue: document.getElementById('totalRevenue'),
+                    saleModal: document.getElementById('saleModal'),
+                    saleAmountInput: document.getElementById('saleAmountInput'),
+                    summaryModal: document.getElementById('summaryModal'),
+                    csvSummary: document.getElementById('csvSummary')
+                };
+            }
+
+            attachEventListeners() {
+                this.els.searchInput.addEventListener('input', () => this.handleFilter());
+                this.els.openTab.addEventListener('click', () => this.handleTabChange('open'));
+                this.els.contactedTab.addEventListener('click', () => this.handleTabChange('contacted'));
+                this.els.closedTab.addEventListener('click', () => this.handleTabChange('closed'));
+                
+                this.els.saleAmountInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.confirmSale();
+                    }
+                });
+            }
+
+            handleTabChange(tab) {
+                this.state.setTab(tab);
+                
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                const tabLabels = {
+                    'open': 'Open Leads',
+                    'contacted': 'Contacted Leads',
+                    'closed': 'Closed Leads'
+                };
+                
+                if (tab === 'open') {
+                    this.els.openTab.classList.add('active');
+                } else if (tab === 'contacted') {
+                    this.els.contactedTab.classList.add('active');
+                } else {
+                    this.els.closedTab.classList.add('active');
+                }
+                
+                this.els.currentTabLabel.textContent = tabLabels[tab];
+                this.handleFilter();
+            }
+
+            /**
+             * Handle CSV file upload
+             * Processes file and checks websites
+             */
+            async handleCSVUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                this.els.loadingState.classList.add('active');
+                this.els.loadingText.textContent = 'Reading CSV file...';
+                this.els.emptyState.style.display = 'none';
+                this.els.progressFill.style.width = '0%';
+                this.els.progressText.textContent = '';
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const csvText = e.target.result;
+                        
+                        this.els.loadingText.textContent = 'Checking websites...';
+                        
+                        // Process CSV with progress updates
+                        const result = await this.processor.processCSV(csvText, (current, total) => {
+                            const percent = Math.round((current / total) * 100);
+                            this.els.progressFill.style.width = `${percent}%`;
+                            this.els.progressText.textContent = `Checked ${current} of ${total} websites`;
+                        });
+                        
+                        const addedCount = this.state.addLeads(result.leads);
+                        
+                        // Show summary
+                        this.els.csvSummary.innerHTML = `
+                            • Total rows in CSV: ${result.summary.totalRows}<br>
+                            • Rows with website + email: ${result.summary.withEmail}<br>
+                            • Websites checked: ${result.summary.checkedWebsites}<br>
+                            • Websites down: ${result.summary.downWebsites}<br>
+                            • <strong>New leads added: ${addedCount}</strong>
+                        `;
+                        this.els.summaryModal.classList.add('active');
+                        
+                        this.render();
+                    } catch (error) {
+                        console.error('Error processing CSV:', error);
+                        alert(error.message || 'Error processing CSV file. Please check the format and try again.');
+                    } finally {
+                        this.els.loadingState.classList.remove('active');
+                        event.target.value = ''; // Reset file input
+                    }
+                };
+
+                reader.readAsText(file);
+            }
+
+            closeSummaryModal() {
+                this.els.summaryModal.classList.remove('active');
+            }
+
+            handleFilter() {
+                const searchQuery = this.els.searchInput.value;
+                this.state.filterLeads(searchQuery);
+                this.render();
+            }
+
+            /**
+             * Handle moving lead to different tab
+             */
+            handleMoveToChange(id, action) {
+                // Immediately hide the card
+                const cardElement = document.getElementById(`lead-${id}`);
+                if (cardElement) {
+                    cardElement.style.display = 'none';
+                }
+
+                if (action === 'sold') {
+                    this.openSaleModal(id);
+                } else if (action === 'not-interested') {
+                    this.state.updateLead(id, { 
+                        moveToAction: 'closed',
+                        status: 'not-interested'
+                    });
+                    this.render();
+                } else if (action === 'not-applicable') {
+                    this.state.updateLead(id, { 
+                        moveToAction: 'closed',
+                        status: 'not-applicable'
+                    });
+                    this.render();
+                } else if (action === 'emailed') {
+                    this.state.updateLead(id, { 
+                        moveToAction: 'contacted',
+                        status: 'contacted'
+                    });
+                    this.render();
+                } else {
+                    this.state.updateLead(id, { 
+                        moveToAction: action,
+                        status: action === 'open' ? 'not-contacted' : 'contacted'
+                    });
+                    this.render();
+                }
+            }
+
+            handleStatusChange(id, status) {
+                if (status === 'sold') {
+                    this.openSaleModal(id);
+                } else {
+                    this.state.updateLead(id, { status });
+                    this.render();
+                }
+            }
+
+            openSaleModal(leadId) {
+                this.pendingSaleLeadId = leadId;
+                this.els.saleAmountInput.value = '';
+                this.els.saleModal.classList.add('active');
+                setTimeout(() => this.els.saleAmountInput.focus(), 100);
+            }
+
+            closeSaleModal() {
+                this.els.saleModal.classList.remove('active');
+                this.pendingSaleLeadId = null;
+            }
+
+            confirmSale() {
+                const amount = parseFloat(this.els.saleAmountInput.value) || 0;
+                if (this.pendingSaleLeadId && amount > 0) {
+                    this.state.updateLead(this.pendingSaleLeadId, {
+                        status: 'sold',
+                        saleAmount: amount,
+                        moveToAction: 'closed'
+                    });
+                    this.closeSaleModal();
+                    this.render();
+                } else if (amount === 0) {
+                    alert('Please enter a sale amount greater than $0');
+                }
+            }
+
+            handleNotesChange(id, notes) {
+                this.state.updateLead(id, { notes });
+            }
+
+            handleLeadClick(id, event) {
+                if (event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                this.state.toggleExpanded(id);
+                this.render();
+            }
+
+            getInitials(businessName) {
+                const words = businessName.split(' ');
+                if (words.length >= 2) {
+                    return (words[0][0] + words[1][0]).toUpperCase();
+                }
+                return businessName.substring(0, 2).toUpperCase();
+            }
+
+            /**
+             * Render individual lead card
+             */
+            renderLead(lead) {
+                const isExpanded = this.state.isExpanded(lead.id);
+                const statusClasses = {
+                    'not-contacted': 'status-not-contacted',
+                    'contacted': 'status-contacted',
+                    'replied': 'status-replied',
+                    'sold': 'status-sold',
+                    'not-interested': 'status-not-interested',
+                    'not-applicable': 'status-not-applicable'
+                };
+
+                return `
+                    <div class="lead-card" id="lead-${lead.id}">
+                        <div class="lead-header" onclick="app.handleLeadClick(${lead.id}, event)">
+                            <div class="lead-icon">
+                                ${this.getInitials(lead.businessName)}
+                            </div>
+                            <div class="lead-info">
+                                <div class="lead-name">${lead.businessName}</div>
+                                <div class="lead-email">${lead.email}</div>
+                                <div class="lead-website">${lead.website}</div>
+                                ${lead.saleAmount > 0 ? `<div class="sale-amount">Sale: $${lead.saleAmount.toFixed(2)}</div>` : ''}
+                            </div>
+                            <div class="lead-actions">
+                                <span class="status-badge status-down">
+                                    Website Down
+                                </span>
+                                <span class="status-badge ${statusClasses[lead.status]}">
+                                    ${lead.status.replace('-', ' ')}
+                                </span>
+                                <select 
+                                    class="move-dropdown" 
+                                    onchange="app.handleMoveToChange(${lead.id}, this.value)"
+                                    onclick="event.stopPropagation()"
+                                >
+                                    <option value="" selected disabled>Move to...</option>
+                                    ${lead.moveToAction !== 'open' ? '<option value="open">Open</option>' : ''}
+                                    ${lead.moveToAction !== 'contacted' ? '<option value="emailed">Emailed/Contacted</option>' : ''}
+                                    ${lead.moveToAction !== 'closed' ? '<option value="not-interested">Not Interested</option>' : ''}
+                                    ${lead.moveToAction !== 'closed' ? '<option value="not-applicable">Not Applicable</option>' : ''}
+                                    ${lead.moveToAction !== 'closed' || lead.status !== 'sold' ? '<option value="sold">Sold</option>' : ''}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="lead-details ${isExpanded ? 'expanded' : ''}">
+                            <div class="detail-section">
+                                <div class="detail-label">Quick Actions</div>
+                                <div class="status-selector">
+                                    ${['not-contacted', 'contacted', 'replied', 'sold'].map(status => `
+                                        <div 
+                                            class="status-option ${status === 'sold' ? 'sold' : ''} ${lead.status === status ? 'active' : ''}"
+                                            onclick="app.handleStatusChange(${lead.id}, '${status}')"
+                                        >
+                                            ${status.replace('-', ' ')}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-section">
+                                <div class="detail-label">Website Status Details</div>
+                                <p style="font-size: 13px; color: #6b7280;">${lead.websiteDetails}</p>
+                            </div>
+                            
+                            <div class="detail-section">
+                                <div class="detail-label">Notes</div>
+                                <textarea 
+                                    placeholder="Add notes about this lead..."
+                                    onchange="app.handleNotesChange(${lead.id}, this.value)"
+                                    onclick="event.stopPropagation()"
+                                >${lead.notes}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateStats() {
+                const stats = this.state.getStats();
+                this.els.totalLeads.textContent = stats.total;
+                this.els.openLeads.textContent = stats.open;
+                this.els.contactedCount.textContent = stats.contacted;
+                this.els.closedCount.textContent = stats.closed;
+                this.els.repliedCount.textContent = stats.replied;
+                this.els.salesCount.textContent = stats.sales;
+                this.els.totalRevenue.textContent = `$${stats.totalRevenue.toFixed(2)}`;
+                this.els.openBadge.textContent = stats.open;
+                this.els.contactedBadge.textContent = stats.contacted;
+                this.els.closedBadge.textContent = stats.closed;
+            }
+
+            render() {
+                this.updateStats();
+
+                if (this.state.filteredLeads.length === 0) {
+                    if (this.state.leads.length === 0) {
+                        this.els.emptyState.style.display = 'block';
+                        this.els.leadsList.innerHTML = '';
+                    } else {
+                        this.els.emptyState.style.display = 'none';
+                        this.els.leadsList.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">🔍</div>
+                                <div class="empty-state-title">No matching leads</div>
+                                <p>Try adjusting your search or check another tab</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    this.els.emptyState.style.display = 'none';
+                    this.els.leadsList.innerHTML = this.state.filteredLeads
+                        .map(lead => this.renderLead(lead))
+                        .join('');
+                }
+            }
+        }
+
+        // ===========================================
+        // INITIALIZE APP
+        // ===========================================
+
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new CRMApp();
+        });
+    </script>
+</body>
+</html>
