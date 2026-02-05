@@ -19,10 +19,14 @@
                 <input type="file" id="csvFileInput" accept=".csv">
             </label>
 
-            <button class="btn btn-primary" id="processCSVBtn">⚡ Process CSV</button>
+            <button class="btn btn-process" id="processBtn">
+                ⚡ Process CSV
+            </button>
 
-            <button class="btn btn-export" id="exportBtn">📊 Export to Excel</button>
-            
+            <button class="btn btn-export" id="exportBtn">
+                📊 Export to Excel
+            </button>
+
             <div class="filter-group">
                 <input type="search" id="searchInput" placeholder="Search business names...">
             </div>
@@ -38,53 +42,16 @@
                 <span class="stat-value" id="openLeads">0</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Contacted</span>
-                <span class="stat-value" id="contactedCount">0</span>
-            </div>
-            <div class="stat-item">
                 <span class="stat-label">Email Found</span>
                 <span class="stat-value" id="emailFoundCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">No Email</span>
-                <span class="stat-value" id="noEmailCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Closed</span>
-                <span class="stat-value" id="closedCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Sales</span>
-                <span class="stat-value" id="salesCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Revenue</span>
-                <span class="stat-value" id="totalRevenue">$0</span>
-            </div>
-        </div>
-
-        <div class="tabs">
-            <div class="tab active" data-tab="open" id="openTab">
-                Open <span class="tab-badge" id="openBadge">0</span>
-            </div>
-            <div class="tab" data-tab="contacted" id="contactedTab">
-                Contacted <span class="tab-badge" id="contactedBadge">0</span>
-            </div>
-            <div class="tab" data-tab="email-found" id="emailFoundTab">
-                Email Found <span class="tab-badge" id="emailFoundBadge">0</span>
-            </div>
-            <div class="tab" data-tab="no-email" id="noEmailTab">
-                No Email <span class="tab-badge" id="noEmailBadge">0</span>
-            </div>
-            <div class="tab" data-tab="closed" id="closedTab">
-                Closed <span class="tab-badge" id="closedBadge">0</span>
             </div>
         </div>
 
         <div class="leads-container">
             <div class="leads-header">
-                <span id="currentTabLabel">Open Leads</span>
+                <span id="currentTabLabel">Leads</span>
             </div>
+
             <div class="loading" id="loadingState" style="display:none;">
                 <div class="spinner"></div>
                 <div id="loadingText">Processing...</div>
@@ -92,12 +59,6 @@
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 <div class="progress-text" id="progressText"></div>
-            </div>
-
-            <div class="empty-state" id="emptyState">
-                <div class="empty-state-icon">📋</div>
-                <div class="empty-state-title">No leads yet</div>
-                <p>Upload a CSV file to find leads with down websites</p>
             </div>
 
             <div id="leadsList"></div>
