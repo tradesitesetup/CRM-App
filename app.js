@@ -1,5 +1,3 @@
-// app.js
-
 const app = {
     csvData: [],
     leads: [],
@@ -40,7 +38,6 @@ const app = {
             const website = row["Website"];
             const address = `${row["Address"] || ""}, ${row["City, State"] || ""}`;
 
-            // Skip if no website
             if (!website) continue;
 
             const status = await this.checkWebsiteStatus(website);
@@ -82,26 +79,30 @@ const app = {
         const container = document.getElementById("leadsList");
         container.innerHTML = "";
 
-        this.leads.forEach((lead, index) => {
-            const div = document.createElement("div");
-            div.className = "lead-item";
+        const search = document.getElementById("searchInput").value.toLowerCase();
 
-            div.innerHTML = `
-                <div class="lead-header">
-                    <strong>${lead.businessName}</strong>
-                    <span>${lead.address}</span>
-                    <span>Website: <a href="${lead.website}" target="_blank">${lead.website}</a></span>
-                    <span>Status: <strong>${lead.status}</strong></span>
-                </div>
-                <div class="lead-actions">
-                    <button onclick="app.promptEmail(${index})">Has Email</button>
-                    <button onclick="app.toggleContacted(${index})">${lead.contacted ? "Uncontacted" : "Contacted"}</button>
-                    <button onclick="app.toggleClosed(${index})">${lead.closed ? "Reopen" : "Closed"}</button>
-                </div>
-            `;
+        this.leads
+            .filter(l => l.businessName.toLowerCase().includes(search))
+            .forEach((lead, index) => {
+                const div = document.createElement("div");
+                div.className = "lead-item";
 
-            container.appendChild(div);
-        });
+                div.innerHTML = `
+                    <div class="lead-header">
+                        <strong>${lead.businessName}</strong>
+                        <span>${lead.address}</span>
+                        <span>Website: <a href="${lead.website}" target="_blank">${lead.website}</a></span>
+                        <span>Status: <strong>${lead.status}</strong></span>
+                    </div>
+                    <div class="lead-actions">
+                        <button onclick="app.promptEmail(${index})">Has Email</button>
+                        <button onclick="app.toggleContacted(${index})">${lead.contacted ? "Uncontacted" : "Contacted"}</button>
+                        <button onclick="app.toggleClosed(${index})">${lead.closed ? "Reopen" : "Closed"}</button>
+                    </div>
+                `;
+
+                container.appendChild(div);
+            });
     },
 
     promptEmail: function (index) {
@@ -167,7 +168,6 @@ const app = {
     }
 };
 
-// Tab switching
 document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
