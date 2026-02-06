@@ -206,7 +206,7 @@
     <div class="container">
         <header>
             <h1>Lead Finder CRM</h1>
-            <p class="subtitle">Upload CSV → finds businesses with down websites (using server proxy for accuracy)</p>
+            <p class="subtitle">Upload CSV data to find businesses with down websites (using server proxy)</p>
         </header>
 
         <div class="controls">
@@ -214,7 +214,7 @@
                 📁 Upload CSV File
                 <input type="file" id="csvFileInput" accept=".csv" onchange="app.handleCSVUpload(event)">
             </label>
-            <button class="btn btn-export" onclick="app.exportToExcel()">
+            <button class="btn btn-export" onclick="if(window.app) app.exportToExcel(); else alert('App not loaded yet');">
                 📊 Export to Excel
             </button>
             <div class="filter-group">
@@ -267,8 +267,8 @@
                 <input type="number" id="saleAmountInput" class="modal-input" placeholder="0.00" step="0.01" min="0">
             </div>
             <div class="modal-actions">
-                <button class="btn btn-cancel" onclick="app.closeSaleModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="app.confirmSale()">Confirm Sale</button>
+                <button class="btn btn-cancel" onclick="if(window.app) app.closeSaleModal(); else alert('App not loaded');">Cancel</button>
+                <button class="btn btn-primary" onclick="if(window.app) app.confirmSale(); else alert('App not loaded');">Confirm Sale</button>
             </div>
         </div>
     </div>
@@ -284,12 +284,14 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-primary" onclick="app.closeSummaryModal()">Got it!</button>
+                <button class="btn btn-primary" onclick="if(window.app) app.closeSummaryModal(); else alert('App not loaded');">Got it!</button>
             </div>
         </div>
     </div>
 
     <script>
+        console.log("Script block started loading...");
+
         // ===========================================
         // BACKEND URL – CHANGE THIS AFTER VERCEL DEPLOY
         // ===========================================
@@ -393,49 +395,301 @@
             }
         }
 
-        // The rest of your original code (CSVProcessor, ExcelExporter, CRMState, CRMApp) goes here
-        // You can copy-paste it from your original file.
-        // Just make sure CSVProcessor uses the new WebsiteChecker
-
-        // Example skeleton for remaining classes (fill in from your original):
-
         class CSVProcessor {
             constructor() {
                 this.parser = new CSVParser();
                 this.checker = new WebsiteChecker();
             }
             async processCSV(csvText, onProgress) {
-                // ... your original logic with batch processing if you want ...
-                // Use this.checker.checkWebsite(website)
+                const rows = this.parser.parse(csvText);
+                if (rows.length < 2) {
+                    return { leads: [], summary: { totalRows: 0, withWebsite: 0, checkedWebsites: 0, downWebsites: 0, finalLeads: 0 } };
+                }
+                const headers = rows[0];
+                const dataRows = rows.slice(1);
+                const businessCol = this.parser.detectBusinessNameColumn(headers);
+                const emailCol = this.parser.detectEmailColumn(headers);
+                const websiteCol = this.parser.detectWebsiteColumn(headers);
+                const addressCol = this.parser.detectAddressColumn(headers);
+                if (websiteCol === -1) {
+                    throw new Error('No website column found in CSV.');
+                }
+                const filteredRows = dataRows.filter(row => this.parser.isValidURL(row[websiteCol]));
+                const summary = {
+                    totalRows: dataRows.length,
+                    withWebsite: filteredRows.length,
+                    checkedWebsites: 0,
+                    downWebsites: 0,
+                    finalLeads: 0
+                };
+                const leads = [];
+                const batchSize = 10;
+                for (let i = 0; i < filteredRows.length; i += batchSize) {
+                    const batch = filteredRows.slice(i, i + batchSize);
+                    const promises = batch.map(async (row, idx) => {
+                        const website = this.parser.normalizeURL(row[websiteCol]);
+                        const status = await this.checker.checkWebsite(website);
+                        summary.checkedWebsites++;
+                        onProgress?.(i + idx + 1, filteredRows.length);
+                        if (status.status === 'down') {
+                            summary.downWebsites++;
+                            const email = emailCol >= 0 ? row[emailCol] : '';
+                            const address = addressCol >= 0 ? row[addressCol] : '';
+                            return {
+                                id: Date.now() + Math.random(),
+                                businessName: row[businessCol] || 'Unknown Business',
+                                email,
+                                hasEmail: this.parser.isValidEmail(email),
+                                website,
+                                address,
+                                websiteStatus: 'down',
+                                websiteDetails: status.details,
+                                status: 'not-contacted',
+                                moveToAction: 'open',
+                                notes: '',
+                                dateAdded: new Date().toISOString(),
+                                saleAmount: 0
+                            };
+                        }
+                        return null;
+                    });
+                    const results = await Promise.allSettled(promises);
+                    leads.push(...results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value));
+                }
+                summary.finalLeads = leads.length;
+                return { leads, summary };
             }
         }
 
         class ExcelExporter {
             exportToExcel(leads) {
-                if (!leads.length) return alert('No leads to export');
-                const data = leads.map(l => ({
-                    'Business Name': l.businessName,
-                    'Website': l.website,
-                    'Address': l.address || '',
-                    'Email': l.email || 'No email',
-                    'Status': l.status,
-                    'Tab': l.moveToAction,
-                    'Sale Amount': l.saleAmount > 0 ? l.saleAmount.toFixed(2) : '',
-                    'Notes': l.notes || '',
-                    'Date Added': new Date(l.dateAdded).toLocaleDateString()
+                if (leads.length === 0) {
+                    alert('No leads to export');
+                    return;
+                }
+                const data = leads.map(lead => ({
+                    'Business Name': lead.businessName,
+                    'Website (Down)': lead.website,
+                    'Address': lead.address || '',
+                    'Email': lead.email || 'No email',
+                    'Status': lead.status,
+                    'Tab': lead.moveToAction,
+                    'Sale Amount': lead.saleAmount > 0 ? lead.saleAmount.toFixed(2) : '',
+                    'Notes': lead.notes || '',
+                    'Date Added': new Date(lead.dateAdded).toLocaleDateString()
                 }));
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Leads");
-                XLSX.writeFile(wb, `leads_${new Date().toISOString().slice(0,10)}.xlsx`);
+                XLSX.writeFile(wb, `leads_export_${new Date().toISOString().split('T')[0]}.xlsx`);
             }
         }
 
-        // ... paste your CRMState, CRMApp, and initialization here ...
+        class CRMState {
+            constructor() {
+                this.leads = JSON.parse(localStorage.getItem('crmLeads')) || [];
+                this.filteredLeads = [...this.leads];
+                this.expandedLeads = new Set();
+                this.currentTab = 'open';
+            }
+            addLeads(newLeads) {
+                const existingWebsites = new Set(this.leads.map(l => l.website));
+                const uniqueLeads = newLeads.filter(lead => !existingWebsites.has(lead.website));
+                this.leads = [...this.leads, ...uniqueLeads];
+                this.filteredLeads = [...this.leads];
+                this.saveToStorage();
+                return uniqueLeads.length;
+            }
+            updateLead(id, updates) {
+                const index = this.leads.findIndex(l => l.id === id);
+                if (index !== -1) {
+                    this.leads[index] = { ...this.leads[index], ...updates };
+                    this.saveToStorage();
+                    return true;
+                }
+                return false;
+            }
+            saveToStorage() {
+                localStorage.setItem('crmLeads', JSON.stringify(this.leads));
+            }
+            setTab(tab) {
+                this.currentTab = tab;
+            }
+            filterLeads(searchQuery) {
+                this.filteredLeads = this.leads.filter(lead => {
+                    const tabMatch = lead.moveToAction === this.currentTab;
+                    const searchMatch = !searchQuery || lead.businessName.toLowerCase().includes(searchQuery.toLowerCase());
+                    return tabMatch && searchMatch;
+                });
+            }
+            toggleExpanded(id) {
+                if (this.expandedLeads.has(id)) this.expandedLeads.delete(id);
+                else this.expandedLeads.add(id);
+            }
+            isExpanded(id) {
+                return this.expandedLeads.has(id);
+            }
+            getStats() {
+                const open = this.leads.filter(l => l.moveToAction === 'open').length;
+                const contacted = this.leads.filter(l => l.moveToAction === 'contacted').length;
+                const emailFound = this.leads.filter(l => l.moveToAction === 'email-found').length;
+                const noEmail = this.leads.filter(l => l.moveToAction === 'no-email').length;
+                const closed = this.leads.filter(l => l.moveToAction === 'closed').length;
+                const sales = this.leads.filter(l => l.status === 'sold').length;
+                const totalRevenue = this.leads.reduce((sum, l) => sum + (l.saleAmount || 0), 0);
+                return { total: this.leads.length, open, contacted, emailFound, noEmail, closed, sales, totalRevenue };
+            }
+        }
+
+        class CRMApp {
+            constructor() {
+                this.state = new CRMState();
+                this.processor = new CSVProcessor();
+                this.exporter = new ExcelExporter();
+                this.pendingSaleLeadId = null;
+                this.init();
+            }
+            init() {
+                this.cacheElements();
+                this.attachEventListeners();
+                this.render();
+            }
+            cacheElements() {
+                this.els = {
+                    searchInput: document.getElementById('searchInput'),
+                    leadsList: document.getElementById('leadsList'),
+                    emptyState: document.getElementById('emptyState'),
+                    loadingState: document.getElementById('loadingState'),
+                    loadingText: document.getElementById('loadingText'),
+                    progressFill: document.getElementById('progressFill'),
+                    progressText: document.getElementById('progressText'),
+                    currentTabLabel: document.getElementById('currentTabLabel'),
+                    openTab: document.getElementById('openTab'),
+                    contactedTab: document.getElementById('contactedTab'),
+                    emailFoundTab: document.getElementById('emailFoundTab'),
+                    noEmailTab: document.getElementById('noEmailTab'),
+                    closedTab: document.getElementById('closedTab'),
+                    openBadge: document.getElementById('openBadge'),
+                    contactedBadge: document.getElementById('contactedBadge'),
+                    emailFoundBadge: document.getElementById('emailFoundBadge'),
+                    noEmailBadge: document.getElementById('noEmailBadge'),
+                    closedBadge: document.getElementById('closedBadge'),
+                    totalLeads: document.getElementById('totalLeads'),
+                    openLeads: document.getElementById('openLeads'),
+                    contactedCount: document.getElementById('contactedCount'),
+                    emailFoundCount: document.getElementById('emailFoundCount'),
+                    noEmailCount: document.getElementById('noEmailCount'),
+                    closedCount: document.getElementById('closedCount'),
+                    salesCount: document.getElementById('salesCount'),
+                    totalRevenue: document.getElementById('totalRevenue'),
+                    saleModal: document.getElementById('saleModal'),
+                    saleAmountInput: document.getElementById('saleAmountInput'),
+                    summaryModal: document.getElementById('summaryModal'),
+                    csvSummary: document.getElementById('csvSummary')
+                };
+            }
+            attachEventListeners() {
+                this.els.searchInput.addEventListener('input', () => this.handleFilter());
+                this.els.openTab.addEventListener('click', () => this.handleTabChange('open'));
+                this.els.contactedTab.addEventListener('click', () => this.handleTabChange('contacted'));
+                this.els.emailFoundTab.addEventListener('click', () => this.handleTabChange('email-found'));
+                this.els.noEmailTab.addEventListener('click', () => this.handleTabChange('no-email'));
+                this.els.closedTab.addEventListener('click', () => this.handleTabChange('closed'));
+                this.els.saleAmountInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.confirmSale();
+                });
+            }
+            handleTabChange(tab) {
+                this.state.setTab(tab);
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                const tabEl = document.getElementById(`${tab}Tab`) || document.getElementById('openTab');
+                tabEl.classList.add('active');
+                this.els.currentTabLabel.textContent = tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ') + ' Leads';
+                this.handleFilter();
+            }
+            async handleCSVUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                console.log('File selected:', file.name);
+                this.els.loadingState.classList.add('active');
+                this.els.loadingText.textContent = 'Reading CSV file...';
+                this.els.emptyState.style.display = 'none';
+                this.els.progressFill.style.width = '0%';
+                this.els.progressText.textContent = '';
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const csvText = e.target.result;
+                        this.els.loadingText.textContent = 'Checking websites...';
+                        const result = await this.processor.processCSV(csvText, (current, total) => {
+                            const percent = Math.round((current / total) * 100);
+                            this.els.progressFill.style.width = `${percent}%`;
+                            this.els.progressText.textContent = `Checked ${current} of ${total} websites`;
+                        });
+                        const added = this.state.addLeads(result.leads);
+                        this.els.csvSummary.innerHTML = `
+                            • Total rows: ${result.summary.totalRows}<br>
+                            • With website: ${result.summary.withWebsite}<br>
+                            • Checked: ${result.summary.checkedWebsites}<br>
+                            • Down: ${result.summary.downWebsites}<br>
+                            • New leads added: ${added}
+                        `;
+                        this.els.summaryModal.classList.add('active');
+                        this.render();
+                    } catch (error) {
+                        console.error('CSV processing error:', error);
+                        alert('Error: ' + error.message);
+                    } finally {
+                        this.els.loadingState.classList.remove('active');
+                        event.target.value = '';
+                    }
+                };
+                reader.readAsText(file);
+            }
+            exportToExcel() {
+                this.exporter.exportToExcel(this.state.getAllLeads());
+            }
+            closeSummaryModal() {
+                this.els.summaryModal.classList.remove('active');
+            }
+            handleFilter() {
+                const query = this.els.searchInput.value;
+                this.state.filterLeads(query);
+                this.render();
+            }
+            // ... (you can add the remaining methods: handleMoveToChange, handleStatusChange, openSaleModal, etc. from your original code)
+            // For now, the core upload / render loop is complete
+            render() {
+                const stats = this.state.getStats();
+                this.els.totalLeads.textContent = stats.total;
+                this.els.openLeads.textContent = stats.open;
+                this.els.contactedCount.textContent = stats.contacted;
+                this.els.emailFoundCount.textContent = stats.emailFound;
+                this.els.noEmailCount.textContent = stats.noEmail;
+                this.els.closedCount.textContent = stats.closed;
+                this.els.salesCount.textContent = stats.sales;
+                this.els.totalRevenue.textContent = `$${stats.totalRevenue.toFixed(2)}`;
+                this.els.openBadge.textContent = stats.open;
+                this.els.contactedBadge.textContent = stats.contacted;
+                this.els.emailFoundBadge.textContent = stats.emailFound;
+                this.els.noEmailBadge.textContent = stats.noEmail;
+                this.els.closedBadge.textContent = stats.closed;
+                // Render leads (simplified for now - add your full renderLead logic here)
+                this.els.leadsList.innerHTML = this.state.filteredLeads.map(lead => `<div>Lead: ${lead.businessName}</div>`).join('');
+            }
+        }
+
+        console.log("All classes defined");
 
         document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOMContentLoaded fired – creating app instance");
             window.app = new CRMApp();
+            console.log("app instance created successfully");
         });
+
+        console.log("Whole script finished parsing");
     </script>
+
+    <script>console.log("Page fully loaded – external script check");</script>
 </body>
 </html>
