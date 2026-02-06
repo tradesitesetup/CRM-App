@@ -187,6 +187,7 @@
                     if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
                     return await res.json();
                 } catch (err) {
+                    console.error("Check failed:", err);
                     return { status: 'down', details: err.message || 'Failed to fetch' };
                 }
             }
@@ -287,7 +288,7 @@
 
         class CRMApp {
             constructor() {
-                console.log("CRMApp created");
+                console.log("CRMApp constructor running");
                 this.state = new CRMState();
                 this.processor = new CSVProcessor();
                 this.init();
@@ -419,9 +420,10 @@
         // Start the app
         window.app = new CRMApp();
 
-        // Hide loading overlay when ready
+        // Hide loading when ready
         window.addEventListener('load', () => {
             document.getElementById('appLoading')?.style.display = 'none';
+            console.log("App ready");
         });
     </script>
 </body>
