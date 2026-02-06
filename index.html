@@ -21,8 +21,6 @@
         .btn-success:hover { background:#059669; }
         .btn-export { background:#8b5cf6; color:white; }
         .btn-export:hover { background:#7c3aed; }
-        .file-upload-btn { position:relative; overflow:hidden; }
-        .file-upload-btn input[type="file"] { position:absolute; left:-9999px; }
         .filter-group { display:flex; gap:12px; align-items:center; margin-left:auto; }
         select, input[type="search"] { padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px; font-size:14px; background:white; }
         input[type="search"] { width:250px; }
@@ -46,34 +44,12 @@
         .lead-info { flex:1; }
         .lead-name { font-size:16px; font-weight:600; color:#1a202c; margin-bottom:6px; }
         .lead-website { font-size:14px; color:#ef4444; margin-bottom:4px; font-weight:500; }
-        .lead-address { font-size:13px; color:#6b7280; margin-bottom:4px; }
         .lead-actions { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
         .status-badge { padding:4px 12px; border-radius:12px; font-size:12px; font-weight:500; }
         .status-down { background:#fee2e2; color:#991b1b; }
-        .status-not-contacted { background:#fef3c7; color:#92400e; }
-        .status-contacted { background:#dbeafe; color:#1e40af; }
-        .status-replied { background:#d1fae5; color:#065f46; }
-        .status-not-interested { background:#fee2e2; color:#991b1b; }
-        .status-sold { background:#d1fae5; color:#065f46; }
-        .status-not-applicable { background:#f3f4f6; color:#6b7280; }
-        .status-email-found { background:#dcfce7; color:#166534; }
-        .status-no-email { background:#fef3c7; color:#92400e; }
         .move-dropdown { padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px; font-size:13px; background:white; cursor:pointer; color:#4a5568; font-weight:500; }
         .move-dropdown:hover { border-color:#3b82f6; }
         .move-dropdown:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
-        .lead-details { margin-top:16px; padding-top:16px; border-top:1px solid #e2e8f0; display:none; }
-        .lead-details.expanded { display:block; }
-        .detail-section { margin-bottom:16px; }
-        .detail-label { font-size:12px; font-weight:600; color:#4a5568; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
-        .status-selector { display:flex; gap:8px; flex-wrap:wrap; }
-        .status-option { padding:6px 12px; border:1px solid #cbd5e0; border-radius:6px; font-size:13px; cursor:pointer; transition:all 0.15s; }
-        .status-option:hover { border-color:#3b82f6; }
-        .status-option.active { background:#3b82f6; color:white; border-color:#3b82f6; }
-        .status-option.sold { border-color:#10b981; }
-        .status-option.sold:hover { border-color:#059669; }
-        .status-option.sold.active { background:#10b981; border-color:#10b981; }
-        textarea { width:100%; padding:12px; border:1px solid #cbd5e0; border-radius:6px; font-size:14px; font-family:inherit; resize:vertical; min-height:100px; }
-        textarea:focus, input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
         .empty-state { padding:60px 24px; text-align:center; color:#718096; }
         .empty-state-icon { font-size:48px; margin-bottom:16px; }
         .empty-state-title { font-size:18px; font-weight:600; color:#4a5568; margin-bottom:8px; }
@@ -81,21 +57,9 @@
         .loading.active { display:block; }
         .spinner { border:3px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; width:40px; height:40px; animation:spin 0.8s linear infinite; margin:0 auto 16px; }
         @keyframes spin { to { transform:rotate(360deg); } }
-        .sale-amount { color:#10b981; font-weight:600; font-size:14px; }
         .progress-bar { width:100%; background:#e2e8f0; border-radius:4px; height:8px; margin-top:12px; overflow:hidden; }
         .progress-fill { height:100%; background:#3b82f6; transition:width 0.3s; }
         .progress-text { margin-top:8px; font-size:13px; color:#718096; }
-        .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
-        .modal-overlay.active { display:flex; }
-        .modal { background:white; border-radius:8px; padding:24px; max-width:500px; width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.2); }
-        .modal-title { font-size:20px; font-weight:600; color:#1a202c; margin-bottom:16px; }
-        .modal-content { margin-bottom:20px; }
-        .modal-input { width:100%; padding:12px; border:1px solid #cbd5e0; border-radius:6px; font-size:16px; margin-top:8px; }
-        .modal-actions { display:flex; gap:12px; justify-content:flex-end; }
-        .btn-cancel { background:#e2e8f0; color:#4a5568; }
-        .btn-cancel:hover { background:#cbd5e0; }
-        .upload-info { background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:12px; font-size:13px; color:#1e40af; margin-bottom:16px; }
-        .upload-info strong { display:block; margin-bottom:4px; }
         #appLoading { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); display:flex; align-items:center; justify-content:center; z-index:9999; }
         @media (max-width: 768px) {
             .filter-group { margin-left:0; width:100%; }
@@ -114,7 +78,7 @@
         <div style="text-align:center;">
             <div class="spinner"></div>
             <p>Loading Lead Finder CRM...</p>
-            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait 2–3 seconds</p>
+            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait a moment</p>
         </div>
     </div>
 
@@ -126,7 +90,7 @@
 
         <div class="controls">
             <button class="btn btn-success" onclick="uploadCSV()">📁 Upload CSV File</button>
-            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="if(window.app) app.handleCSVUpload(event)">
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none">
             <button class="btn btn-export" onclick="if(window.app) app.exportToExcel(); else alert('App not ready yet')">
                 📊 Export to Excel
             </button>
@@ -171,37 +135,6 @@
         </div>
     </div>
 
-    <!-- Sale Amount Modal -->
-    <div class="modal-overlay" id="saleModal">
-        <div class="modal">
-            <div class="modal-title">Enter Sale Amount</div>
-            <div class="modal-content">
-                <label for="saleAmountInput">How much was the sale?</label>
-                <input type="number" id="saleAmountInput" class="modal-input" placeholder="0.00" step="0.01" min="0">
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-cancel" onclick="if(window.app) app.closeSaleModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="if(window.app) app.confirmSale()">Confirm Sale</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Processing Summary Modal -->
-    <div class="modal-overlay" id="summaryModal">
-        <div class="modal">
-            <div class="modal-title">Processing Complete</div>
-            <div class="modal-content">
-                <div class="upload-info">
-                    <strong>Import Summary:</strong>
-                    <div id="csvSummary"></div>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-primary" onclick="if(window.app) app.closeSummaryModal()">Got it!</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         console.log("Script started loading...");
 
@@ -211,7 +144,7 @@
             if (window.app && typeof window.app.handleCSVUpload === 'function') {
                 document.getElementById('csvFileInput').click();
             } else {
-                alert('App is still loading – wait 2–3 seconds and try again, or refresh the page.');
+                alert('App is still loading – wait a few seconds and try again.');
             }
         }
 
@@ -332,7 +265,6 @@
             constructor() {
                 this.leads = JSON.parse(localStorage.getItem('crmLeads')) || [];
                 this.filteredLeads = [...this.leads];
-                this.expandedLeads = new Set();
                 this.currentTab = 'open';
             }
             addLeads(newLeads) {
@@ -361,20 +293,13 @@
                     return tabMatch && nameMatch;
                 });
             }
-            toggleExpanded(id) {
-                if (this.expandedLeads.has(id)) this.expandedLeads.delete(id);
-                else this.expandedLeads.add(id);
-            }
-            isExpanded(id) { return this.expandedLeads.has(id); }
         }
 
         class CRMApp {
             constructor() {
                 console.log("CRMApp constructor running");
                 this.state = new CRMState();
-                this.processor = new CSVProcessor();   // FIXED: this line ensures processCSV exists
-                this.exporter = new ExcelExporter();   // for export
-                this.pendingSaleLeadId = null;
+                this.processor = new CSVProcessor();
                 this.init();
             }
 
@@ -415,11 +340,7 @@
                     noEmailCount: document.getElementById('noEmailCount'),
                     closedCount: document.getElementById('closedCount'),
                     salesCount: document.getElementById('salesCount'),
-                    totalRevenue: document.getElementById('totalRevenue'),
-                    saleModal: document.getElementById('saleModal'),
-                    saleAmountInput: document.getElementById('saleAmountInput'),
-                    summaryModal: document.getElementById('summaryModal'),
-                    csvSummary: document.getElementById('csvSummary')
+                    totalRevenue: document.getElementById('totalRevenue')
                 };
 
                 Object.keys(this.els).forEach(key => {
@@ -462,17 +383,6 @@
 
                         const added = this.state.addLeads(result.leads);
 
-                        if (this.els?.csvSummary) {
-                            this.els.csvSummary.innerHTML = `
-                                • Total rows: ${result.summary.totalRows}<br>
-                                • With website: ${result.summary.withWebsite}<br>
-                                • Checked: ${result.summary.checkedWebsites}<br>
-                                • Down: ${result.summary.downWebsites}<br>
-                                • New leads added: ${added}
-                            `;
-                        }
-                        this.els?.summaryModal?.classList.add('active');
-
                         this.render();
                     } catch (err) {
                         console.error("CSV processing error:", err);
@@ -500,11 +410,6 @@
                 if (tabEl) tabEl.classList.add('active');
                 this.els?.currentTabLabel?.textContent = tab.charAt(0).toUpperCase() + tab.slice(1) + ' Leads';
                 this.handleFilter();
-            }
-
-            handleMoveToChange(id, action) {
-                this.state.updateLead(id, { moveToAction: action });
-                this.render();
             }
 
             render() {
@@ -543,10 +448,6 @@
                 `).join('');
 
                 if (this.els.totalLeads) this.els.totalLeads.textContent = this.state.leads.length;
-            }
-
-            exportToExcel() {
-                alert("Export feature coming soon – current leads: " + this.state.leads.length);
             }
         }
 
