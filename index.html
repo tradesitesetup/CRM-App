@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lead Finder CRM</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -287,32 +288,39 @@
                 const summary = { totalRows: dataRows.length, withWebsite: 0, checkedWebsites: 0, downWebsites: 0, finalLeads: 0 };
                 const leads = [];
 
-                for (let i = 0; i < dataRows.length; i++) {
-                    const row = dataRows[i];
-                    const rawUrl = row[websiteCol]?.trim();
-                    if (!rawUrl || !this.parser.isValidURL(rawUrl)) continue;
+                const batchSize = 10;
+                for (let i = 0; i < dataRows.length; i += batchSize) {
+                    const batch = dataRows.slice(i, i + batchSize);
+                    const promises = batch.map(async (row, idx) => {
+                        const rawUrl = row[websiteCol]?.trim();
+                        if (!rawUrl || !this.parser.isValidURL(rawUrl)) return null;
 
-                    summary.withWebsite++;
-                    const website = this.parser.normalizeURL(rawUrl);
-                    const status = await this.checker.checkWebsite(website);
-                    summary.checkedWebsites++;
+                        summary.withWebsite++;
+                        const website = this.parser.normalizeURL(rawUrl);
+                        const status = await this.checker.checkWebsite(website);
+                        summary.checkedWebsites++;
 
-                    if (onProgress) onProgress(i + 1, dataRows.length);
+                        onProgress?.(summary.checkedWebsites, dataRows.length);
 
-                    if (status.status === 'down') {
-                        summary.downWebsites++;
-                        leads.push({
-                            id: Date.now() + Math.random(),
-                            businessName: (businessCol >= 0 ? row[businessCol] : 'Unknown Business').trim(),
-                            website,
-                            websiteDetails: status.details || 'Down',
-                            status: 'not-contacted',
-                            moveToAction: 'open',
-                            notes: '',
-                            dateAdded: new Date().toISOString(),
-                            saleAmount: 0
-                        });
-                    }
+                        if (status.status === 'down') {
+                            summary.downWebsites++;
+                            return {
+                                id: Date.now() + Math.random(),
+                                businessName: (businessCol >= 0 ? row[businessCol] : 'Unknown Business').trim(),
+                                website,
+                                websiteDetails: status.details || 'Down',
+                                status: 'not-contacted',
+                                moveToAction: 'open',
+                                notes: '',
+                                dateAdded: new Date().toISOString(),
+                                saleAmount: 0
+                            };
+                        }
+                        return null;
+                    });
+
+                    const batchResults = await Promise.allSettled(promises);
+                    leads.push(...batchResults.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value));
                 }
 
                 summary.finalLeads = leads.length;
@@ -364,7 +372,7 @@
             constructor() {
                 console.log("CRMApp constructor running");
                 this.state = new CRMState();
-                this.processor = new CSVProcessor();   // FIXED HERE – this was missing
+                this.processor = new CSVProcessor();   // FIXED: this line ensures processCSV exists
                 this.exporter = new ExcelExporter();   // for export
                 this.pendingSaleLeadId = null;
                 this.init();
@@ -542,7 +550,7 @@
             }
         }
 
-        // Create app immediately
+        // Create app instance immediately
         console.log("Creating app instance...");
         window.app = new CRMApp();
 
