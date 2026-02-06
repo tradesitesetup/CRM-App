@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Finder CRM</title>
+    <!-- SheetJS for real XLSX export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa; color: #2d3748; line-height:1.6;
+        }
+        .container { max-width:1400px; margin:0 auto; padding:20px; }
+        header {
+            background:white; padding:24px; border-radius:8px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:24px;
+        }
+        h1 { font-size:28px; font-weight:600; color:#1a202c; margin-bottom:8px; }
+        .subtitle { color:#718096; font-size:14px; }
+        .controls {
+            background:white; padding:20px 24px; border-radius:8px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:24px;
+            display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+        }
+        .btn {
+            padding:12px 24px; border:none; border-radius:6px;
+            font-size:14px; font-weight:500; cursor:pointer;
+            transition:all 0.2s;
+        }
+        .btn-primary { background:#3b82f6; color:white; }
+        .btn-primary:hover { background:#2563eb; }
+        .btn-success { background:#10b981; color:white; }
+        .btn-success:hover { background:#059669; }
+        .btn-export { background:#8b5cf6; color:white; }
+        .btn-export:hover { background:#7c3aed; }
+        .btn:active { transform:scale(0.98); }
+        .file-upload-btn { position:relative; overflow:hidden; }
+        .file-upload-btn input[type="file"] { position:absolute; left:-9999px; }
+        .filter-group { display:flex; gap:12px; align-items:center; margin-left:auto; }
+        select, input[type="search"] {
+            padding:8px 12px; border:1px solid #cbd5e0;
+            border-radius:6px; font-size:14px; background:white;
+        }
+        input[type="search"] { width:250px; }
+        .stats {
+            background:white; padding:16px 24px; border-radius:8px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:24px;
+            display:flex; gap:32px; flex-wrap:wrap;
+        }
+        .stat-item { display:flex; flex-direction:column; }
+        .stat-label { font-size:12px; color:#718096; text-transform:uppercase; letter-spacing:0.5px; }
+        .stat-value { font-size:24px; font-weight:600; color:#1a202c; }
+        .tabs {
+            background:white; border-radius:8px 8px 0 0;
+            box-shadow:0 1px 3px rgba(0,0,0,0.1);
+            display:flex; border-bottom:2px solid #e2e8f0; overflow-x:auto;
+        }
+        .tab {
+            padding:16px 20px; font-size:14px; font-weight:500;
+            color:#718096; cursor:pointer; text-align:center;
+            border-bottom:3px solid transparent; margin-bottom:-2px;
+            transition:all 0.2s; white-space:nowrap; flex-shrink:0;
+        }
+        .tab:hover { background:#f7fafc; }
+        .tab.active { color:#3b82f6; border-bottom-color:#3b82f6; }
+        .tab-badge {
+            display:inline-block; background:#e2e8f0; color:#4a5568;
+            padding:2px 8px; border-radius:10px; font-size:12px;
+            margin-left:8px; font-weight:600;
+        }
+        .tab.active .tab-badge { background:#dbeafe; color:#1e40af; }
+        .leads-container {
+            background:white; border-radius:0 0 8px 8px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.1); overflow:hidden;
+        }
+        .leads-header {
+            padding:16px 24px; border-bottom:1px solid #e2e8f0;
+            font-weight:600; color:#4a5568; font-size:14px;
+        }
+        .lead-card {
+            border-bottom:1px solid #e2e8f0; padding:20px 24px;
+            cursor:pointer; transition:background 0.15s;
+        }
+        .lead-card:hover { background:#f7fafc; }
+        .lead-card:last-child { border-bottom:none; }
+        .lead-header { display:flex; align-items:flex-start; gap:16px; }
+        .lead-icon {
+            width:48px; height:48px; border-radius:8px;
+            background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display:flex; align-items:center; justify-content:center;
+            color:white; font-weight:600; font-size:20px; flex-shrink:0;
+        }
+        .lead-info { flex:1; }
+        .lead-name { font-size:16px; font-weight:600; color:#1a202c; margin-bottom:6px; }
+        .lead-website { font-size:14px; color:#ef4444; margin-bottom:4px; font-weight:500; }
+        .lead-address { font-size:13px; color:#6b7280; margin-bottom:4px; }
+        .lead-email { font-size:13px; color:#3b82f6; }
+        .lead-email.no-email { color:#9ca3af; font-style:italic; }
+        .lead-actions { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+        .status-badge {
+            padding:4px 12px; border-radius:12px;
+            font-size:12px; font-weight:500;
+        }
+        .status-down { background:#fee2e2; color:#991b1b; }
+        .status-not-contacted { background:#fef3c7; color:#92400e; }
+        .status-contacted { background:#dbeafe; color:#1e40af; }
+        .status-replied { background:#d1fae5; color:#065f46; }
+        .status-not-interested { background:#fee2e2; color:#991b1b; }
+        .status-sold { background:#d1fae5; color:#065f46; }
+        .status-not-applicable { background:#f3f4f6; color:#6b7280; }
+        .status-email-found { background:#dcfce7; color:#166534; }
+        .status-no-email { background:#fef3c7; color:#92400e; }
+        .move-dropdown {
+            padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px;
+            font-size:13px; background:white; cursor:pointer;
+            color:#4a5568; font-weight:500;
+        }
+        .move-dropdown:hover { border-color:#3b82f6; }
+        .move-dropdown:focus {
+            outline:none; border-color:#3b82f6;
+            box-shadow:0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .lead-details { margin-top:16px; padding-top:16px; border-top:1px solid #e2e8f0; display:none; }
+        .lead-details.expanded { display:block; }
+        .detail-section { margin-bottom:16px; }
+        .detail-label {
+            font-size:12px; font-weight:600; color:#4a5568;
+            text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;
+        }
+        .status-selector { display:flex; gap:8px; flex-wrap:wrap; }
+        .status-option {
+            padding:6px 12px; border:1px solid #cbd5e0; border-radius:6px;
+            font-size:13px; cursor:pointer; transition:all 0.15s;
+        }
+        .status-option:hover { border-color:#3b82f6; }
+        .status-option.active {
+            background:#3b82f6; color:white; border-color:#3b82f6;
+        }
+        .status-option.sold { border-color:#10b981; }
+        .status-option.sold:hover { border-color:#059669; }
+        .status-option.sold.active { background:#10b981; border-color:#10b981; }
+        textarea {
+            width:100%; padding:12px; border:1px solid #cbd5e0; border-radius:6px;
+            font-size:14px; font-family:inherit; resize:vertical; min-height:100px;
+        }
+        textarea:focus, input:focus {
+            outline:none; border-color:#3b82f6;
+            box-shadow:0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .empty-state { padding:60px 24px; text-align:center; color:#718096; }
+        .empty-state-icon { font-size:48px; margin-bottom:16px; }
+        .empty-state-title { font-size:18px; font-weight:600; color:#4a5568; margin-bottom:8px; }
+        .loading { display:none; padding:40px; text-align:center; color:#718096; }
+        .loading.active { display:block; }
+        .spinner {
+            border:3px solid #e2e8f0; border-top-color:#3b82f6;
+            border-radius:50%; width:40px; height:40px;
+            animation:spin 0.8s linear infinite; margin:0 auto 16px;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .sale-amount { color:#10b981; font-weight:600; font-size:14px; }
+        .progress-bar {
+            width:100%; background:#e2e8f0; border-radius:4px;
+            height:8px; margin-top:12px; overflow:hidden;
+        }
+        .progress-fill { height:100%; background:#3b82f6; transition:width 0.3s; }
+        .progress-text { margin-top:8px; font-size:13px; color:#718096; }
+        .modal-overlay {
+            display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+            background:rgba(0,0,0,0.5); z-index:1000;
+            align-items:center; justify-content:center;
+        }
+        .modal-overlay.active { display:flex; }
+        .modal {
+            background:white; border-radius:8px; padding:24px;
+            max-width:500px; width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-title { font-size:20px; font-weight:600; color:#1a202c; margin-bottom:16px; }
+        .modal-content { margin-bottom:20px; }
+        .modal-input {
+            width:100%; padding:12px; border:1px solid #cbd5e0;
+            border-radius:6px; font-size:16px; margin-top:8px;
+        }
+        .modal-actions { display:flex; gap:12px; justify-content:flex-end; }
+        .btn-cancel { background:#e2e8f0; color:#4a5568; }
+        .btn-cancel:hover { background:#cbd5e0; }
+        .upload-info {
+            background:#eff6ff; border:1px solid #93c5fd; border-radius:6px;
+            padding:12px; font-size:13px; color:#1e40af; margin-bottom:16px;
+        }
+        .upload-info strong { display:block; margin-bottom:4px; }
+        @media (max-width: 768px) {
+            .filter-group { margin-left:0; width:100%; }
+            input[type="search"] { width:100%; }
+            .stats { flex-direction:column; gap:16px; }
+            .lead-header { flex-wrap:wrap; }
+            .lead-actions { width:100%; justify-content:space-between; }
+            .tab { font-size:12px; padding:12px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lead Finder CRM</h1>
+            <p class="subtitle">Upload CSV → finds businesses with down websites (using server proxy for accuracy)</p>
+        </header>
+
+        <div class="controls">
+            <label class="btn btn-success file-upload-btn">
+                📁 Upload CSV File
+                <input type="file" id="csvFileInput" accept=".csv" onchange="app.handleCSVUpload(event)">
+            </label>
+            <button class="btn btn-export" onclick="app.exportToExcel()">
+                📊 Export to Excel
+            </button>
+            <div class="filter-group">
+                <input type="search" id="searchInput" placeholder="Search business names...">
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item"><span class="stat-label">Total Leads</span><span class="stat-value" id="totalLeads">0</span></div>
+            <div class="stat-item"><span class="stat-label">Open Leads</span><span class="stat-value" id="openLeads">0</span></div>
+            <div class="stat-item"><span class="stat-label">Contacted</span><span class="stat-value" id="contactedCount">0</span></div>
+            <div class="stat-item"><span class="stat-label">Email Found</span><span class="stat-value" id="emailFoundCount">0</span></div>
+            <div class="stat-item"><span class="stat-label">No Email</span><span class="stat-value" id="noEmailCount">0</span></div>
+            <div class="stat-item"><span class="stat-label">Closed</span><span class="stat-value" id="closedCount">0</span></div>
+            <div class="stat-item"><span class="stat-label">Sales</span><span class="stat-value" id="salesCount">0</span></div>
+            <div class="stat-item"><span class="stat-label">Revenue</span><span class="stat-value" id="totalRevenue">$0</span></div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="open" id="openTab">Open <span class="tab-badge" id="openBadge">0</span></div>
+            <div class="tab" data-tab="contacted" id="contactedTab">Contacted <span class="tab-badge" id="contactedBadge">0</span></div>
+            <div class="tab" data-tab="email-found" id="emailFoundTab">Email Found <span class="tab-badge" id="emailFoundBadge">0</span></div>
+            <div class="tab" data-tab="no-email" id="noEmailTab">No Email <span class="tab-badge" id="noEmailBadge">0</span></div>
+            <div class="tab" data-tab="closed" id="closedTab">Closed <span class="tab-badge" id="closedBadge">0</span></div>
+        </div>
+
+        <div class="leads-container">
+            <div class="leads-header"><span id="currentTabLabel">Open Leads</span></div>
+            <div class="loading" id="loadingState">
+                <div class="spinner"></div>
+                <div id="loadingText">Processing...</div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="progress-text" id="progressText"></div>
+            </div>
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-title">No leads yet</div>
+                <p>Upload a CSV file to find leads with down websites</p>
+            </div>
+            <div id="leadsList"></div>
+        </div>
+    </div>
+
+    <!-- Sale Amount Modal -->
+    <div class="modal-overlay" id="saleModal">
+        <div class="modal">
+            <div class="modal-title">Enter Sale Amount</div>
+            <div class="modal-content">
+                <label for="saleAmountInput">How much was the sale?</label>
+                <input type="number" id="saleAmountInput" class="modal-input" placeholder="0.00" step="0.01" min="0">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="app.closeSaleModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="app.confirmSale()">Confirm Sale</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Summary Modal -->
+    <div class="modal-overlay" id="summaryModal">
+        <div class="modal">
+            <div class="modal-title">Processing Complete</div>
+            <div class="modal-content">
+                <div class="upload-info">
+                    <strong>Import Summary:</strong>
+                    <div id="csvSummary"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="app.closeSummaryModal()">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================================
+        // BACKEND URL – CHANGE THIS AFTER VERCEL DEPLOY
+        // ===========================================
+        const BACKEND_URL = 'https://YOUR-PROJECT-NAME.vercel.app';  // ← Replace with your actual Vercel URL
+
+        class CSVParser {
+            parse(csvText) {
+                const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+                if (lines.length === 0) return [];
+                const rows = [];
+                for (const line of lines) {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    let i = 0;
+                    while (i < line.length) {
+                        const char = line[i];
+                        if (char === '"' && !inQuotes) { inQuotes = true; i++; continue; }
+                        if (char === '"' && inQuotes) {
+                            if (line[i+1] === '"') { current += '"'; i += 2; continue; }
+                            inQuotes = false; i++; continue;
+                        }
+                        if (char === ',' && !inQuotes) {
+                            result.push(current.trim());
+                            current = ''; i++; continue;
+                        }
+                        current += char; i++;
+                    }
+                    result.push(current.trim());
+                    rows.push(result);
+                }
+                return rows;
+            }
+
+            detectBusinessNameColumn(headers) {
+                const keywords = ['business', 'company', 'name'];
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(k => header.includes(k))) return i;
+                }
+                return 0;
+            }
+
+            detectEmailColumn(headers) {
+                const keywords = ['email', 'e-mail', 'mail'];
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(k => header.includes(k))) return i;
+                }
+                return -1;
+            }
+
+            detectWebsiteColumn(headers) {
+                const keywords = ['website', 'url', 'site', 'web'];
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(k => header.includes(k))) return i;
+                }
+                return -1;
+            }
+
+            detectAddressColumn(headers) {
+                const keywords = ['address', 'location', 'street', 'addr'];
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(k => header.includes(k))) return i;
+                }
+                return -1;
+            }
+
+            isValidEmail(email) {
+                if (!email) return false;
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+            }
+
+            isValidURL(url) {
+                if (!url) return false;
+                return /(https?:\/\/|www\.|[a-zA-Z0-9-]+\.(com|org|net|io|co|edu|gov))/i.test(url.trim());
+            }
+
+            normalizeURL(url) {
+                if (!url) return '';
+                url = url.trim();
+                if (!url.match(/^https?:\/\//i)) return 'https://' + url;
+                return url;
+            }
+        }
+
+        class WebsiteChecker {
+            constructor() {
+                this.backendUrl = BACKEND_URL;
+            }
+            async checkWebsite(url) {
+                try {
+                    const res = await fetch(`${this.backendUrl}/check?url=${encodeURIComponent(url)}`);
+                    if (!res.ok) throw new Error('Proxy error');
+                    return await res.json();
+                } catch (err) {
+                    return { status: 'down', details: err.message || 'Proxy connection failed' };
+                }
+            }
+        }
+
+        // The rest of your original code (CSVProcessor, ExcelExporter, CRMState, CRMApp) goes here
+        // You can copy-paste it from your original file.
+        // Just make sure CSVProcessor uses the new WebsiteChecker
+
+        // Example skeleton for remaining classes (fill in from your original):
+
+        class CSVProcessor {
+            constructor() {
+                this.parser = new CSVParser();
+                this.checker = new WebsiteChecker();
+            }
+            async processCSV(csvText, onProgress) {
+                // ... your original logic with batch processing if you want ...
+                // Use this.checker.checkWebsite(website)
+            }
+        }
+
+        class ExcelExporter {
+            exportToExcel(leads) {
+                if (!leads.length) return alert('No leads to export');
+                const data = leads.map(l => ({
+                    'Business Name': l.businessName,
+                    'Website': l.website,
+                    'Address': l.address || '',
+                    'Email': l.email || 'No email',
+                    'Status': l.status,
+                    'Tab': l.moveToAction,
+                    'Sale Amount': l.saleAmount > 0 ? l.saleAmount.toFixed(2) : '',
+                    'Notes': l.notes || '',
+                    'Date Added': new Date(l.dateAdded).toLocaleDateString()
+                }));
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Leads");
+                XLSX.writeFile(wb, `leads_${new Date().toISOString().slice(0,10)}.xlsx`);
+            }
+        }
+
+        // ... paste your CRMState, CRMApp, and initialization here ...
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new CRMApp();
+        });
+    </script>
+</body>
+</html>
