@@ -108,12 +108,13 @@
     </style>
 </head>
 <body>
-    <!-- Full-page loading overlay -->
+
+    <!-- Full-page loading overlay until app is ready -->
     <div id="appLoading">
         <div style="text-align:center;">
             <div class="spinner"></div>
             <p>Loading Lead Finder CRM...</p>
-            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait 2–3 seconds</p>
+            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait a moment</p>
         </div>
     </div>
 
@@ -125,7 +126,7 @@
 
         <div class="controls">
             <button class="btn btn-success" onclick="uploadCSV()">📁 Upload CSV File</button>
-            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="app.handleCSVUpload(event)">
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="if(window.app) app.handleCSVUpload(event)">
             <button class="btn btn-export" onclick="if(window.app) app.exportToExcel(); else alert('App not ready yet')">
                 📊 Export to Excel
             </button>
@@ -202,67 +203,53 @@
     </div>
 
     <script>
-        console.log("Script started loading...");
+        console.log("Script file loaded");
 
         const BACKEND_URL = 'https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app';
 
-        // Safe upload trigger
+        // Safe upload trigger function
         function uploadCSV() {
-            if (window.app && window.app.handleCSVUpload) {
+            if (window.app && typeof window.app.handleCSVUpload === 'function') {
                 document.getElementById('csvFileInput').click();
             } else {
-                alert('App is still loading – please wait a few seconds and try again, or refresh the page.');
+                alert('App is still initializing – please wait a few seconds and try again.');
             }
         }
 
         class CSVParser {
             parse(csvText) {
-                const lines = csvText.split('\n').map(line => line.trim()).filter(line => line);
+                const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
                 if (lines.length === 0) return [];
-                const rows = lines.map(line => {
-                    const result = [];
-                    let current = '';
-                    let inQuotes = false;
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
-                        if (char === '"') {
-                            inQuotes = !inQuotes;
-                        } else if (char === ',' && !inQuotes) {
-                            result.push(current.trim());
-                            current = '';
-                        } else {
-                            current += char;
-                        }
-                    }
-                    result.push(current.trim());
-                    return result;
-                });
-                return rows;
+                return lines.map(line => line.split('\t').map(cell => cell.trim().replace(/^"|"$/g, '')));
             }
+
             detectBusinessNameColumn(headers) {
                 const keywords = ['business', 'company', 'name'];
                 for (let i = 0; i < headers.length; i++) {
-                    const header = headers[i].toLowerCase();
-                    if (keywords.some(keyword => header.includes(keyword))) return i;
+                    const header = headers[i].toLowerCase().trim();
+                    if (keywords.some(k => header.includes(k))) return i;
                 }
                 return 0;
             }
+
             detectWebsiteColumn(headers) {
                 const keywords = ['website', 'url', 'site', 'web'];
                 for (let i = 0; i < headers.length; i++) {
-                    const header = headers[i].toLowerCase();
-                    if (keywords.some(keyword => header.includes(keyword))) return i;
+                    const header = headers[i].toLowerCase().trim();
+                    if (keywords.some(k => header === k || header.includes(k))) return i;
                 }
                 return -1;
             }
+
             isValidURL(url) {
                 if (!url) return false;
                 return /(https?:\/\/|www\.|[a-zA-Z0-9-]+\.(com|org|net|io|co|edu|gov))/i.test(url.trim());
             }
+
             normalizeURL(url) {
                 if (!url) return '';
                 url = url.trim();
-                if (!url.startsWith('http://') && !url.startsWith('https://')) return 'https://' + url;
+                if (!/^https?:\/\//i.test(url)) return 'https://' + url;
                 return url;
             }
         }
@@ -274,11 +261,64 @@
             async checkWebsite(url) {
                 try {
                     const res = await fetch(`${this.backendUrl}/check?url=${encodeURIComponent(url)}`);
-                    if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+                    if (!res.ok) throw new Error(`API returned ${res.status}`);
                     return await res.json();
                 } catch (err) {
-                    return { status: 'down', details: err.message || 'Connection failed' };
+                    console.error("API check failed:", err);
+                    return { status: 'down', details: err.message || 'Failed to fetch' };
                 }
+            }
+        }
+
+        class CSVProcessor {
+            constructor() {
+                this.parser = new CSVParser();
+                this.checker = new WebsiteChecker();
+            }
+            async processCSV(csvText, onProgress) {
+                const rows = this.parser.parse(csvText);
+                if (rows.length < 2) return { leads: [], summary: { totalRows: 0, withWebsite: 0, checkedWebsites: 0, downWebsites: 0, finalLeads: 0 } };
+
+                const headers = rows[0];
+                const dataRows = rows.slice(1);
+                const websiteCol = this.parser.detectWebsiteColumn(headers);
+                if (websiteCol === -1) throw new Error('No "Website" or "URL" column found in CSV');
+
+                const businessCol = this.parser.detectBusinessNameColumn(headers);
+
+                const summary = { totalRows: dataRows.length, withWebsite: 0, checkedWebsites: 0, downWebsites: 0, finalLeads: 0 };
+                const leads = [];
+
+                for (let i = 0; i < dataRows.length; i++) {
+                    const row = dataRows[i];
+                    const rawUrl = row[websiteCol]?.trim();
+                    if (!rawUrl || !this.parser.isValidURL(rawUrl)) continue;
+
+                    summary.withWebsite++;
+                    const website = this.parser.normalizeURL(rawUrl);
+                    const status = await this.checker.checkWebsite(website);
+                    summary.checkedWebsites++;
+
+                    if (onProgress) onProgress(i + 1, dataRows.length);
+
+                    if (status.status === 'down') {
+                        summary.downWebsites++;
+                        leads.push({
+                            id: Date.now() + Math.random(),
+                            businessName: (businessCol >= 0 ? row[businessCol] : 'Unknown Business').trim(),
+                            website,
+                            websiteDetails: status.details || 'Down',
+                            status: 'not-contacted',
+                            moveToAction: 'open',
+                            notes: '',
+                            dateAdded: new Date().toISOString(),
+                            saleAmount: 0
+                        });
+                    }
+                }
+
+                summary.finalLeads = leads.length;
+                return { leads, summary };
             }
         }
 
@@ -290,67 +330,58 @@
                 this.currentTab = 'open';
             }
             addLeads(newLeads) {
-                const existingWebsites = new Set(this.leads.map(l => l.website));
-                const uniqueLeads = newLeads.filter(lead => !existingWebsites.has(lead.website));
-                this.leads = [...this.leads, ...uniqueLeads];
+                const existing = new Set(this.leads.map(l => l.website));
+                const unique = newLeads.filter(l => !existing.has(l.website));
+                this.leads = [...this.leads, ...unique];
                 this.filteredLeads = [...this.leads];
                 localStorage.setItem('crmLeads', JSON.stringify(this.leads));
-                return uniqueLeads.length;
+                return unique.length;
             }
             updateLead(id, updates) {
                 const index = this.leads.findIndex(l => l.id === id);
                 if (index !== -1) {
                     this.leads[index] = { ...this.leads[index], ...updates };
                     localStorage.setItem('crmLeads', JSON.stringify(this.leads));
+                    this.filteredLeads = [...this.leads];
                     return true;
                 }
                 return false;
             }
-            setTab(tab) {
-                this.currentTab = tab;
-            }
-            filterLeads(searchQuery) {
-                this.filteredLeads = this.leads.filter(lead => {
-                    const tabMatch = lead.moveToAction === this.currentTab;
-                    const searchMatch = !searchQuery || lead.businessName.toLowerCase().includes(searchQuery.toLowerCase());
-                    return tabMatch && searchMatch;
+            setTab(tab) { this.currentTab = tab; }
+            filterLeads(query) {
+                this.filteredLeads = this.leads.filter(l => {
+                    const tabMatch = l.moveToAction === this.currentTab;
+                    const nameMatch = !query || l.businessName.toLowerCase().includes(query.toLowerCase());
+                    return tabMatch && nameMatch;
                 });
             }
             toggleExpanded(id) {
                 if (this.expandedLeads.has(id)) this.expandedLeads.delete(id);
                 else this.expandedLeads.add(id);
             }
-            isExpanded(id) {
-                return this.expandedLeads.has(id);
-            }
-            getStats() {
-                const open = this.leads.filter(l => l.moveToAction === 'open').length;
-                const contacted = this.leads.filter(l => l.moveToAction === 'contacted').length;
-                const emailFound = this.leads.filter(l => l.moveToAction === 'email-found').length;
-                const noEmail = this.leads.filter(l => l.moveToAction === 'no-email').length;
-                const closed = this.leads.filter(l => l.moveToAction === 'closed').length;
-                const sales = this.leads.filter(l => l.status === 'sold').length;
-                const revenue = this.leads.reduce((sum, l) => sum + (l.saleAmount || 0), 0);
-                return { total: this.leads.length, open, contacted, emailFound, noEmail, closed, sales, totalRevenue: revenue };
-            }
+            isExpanded(id) { return this.expandedLeads.has(id); }
         }
 
         class CRMApp {
             constructor() {
-                console.log("CRMApp constructor called");
+                console.log("CRMApp constructor running");
                 this.state = new CRMState();
+                this.processor = new CSVProcessor();   // FIXED: this line was missing
                 this.init();
             }
+
             init() {
                 console.log("CRMApp init called");
                 this.cacheElements();
                 this.attachEventListeners();
                 this.render();
-                // Hide full-page loading
+                // Hide loading overlay
                 const loading = document.getElementById('appLoading');
                 if (loading) loading.style.display = 'none';
             }
+
             cacheElements() {
+                console.log("Caching DOM elements...");
                 this.els = {
                     searchInput: document.getElementById('searchInput'),
                     leadsList: document.getElementById('leadsList'),
@@ -384,11 +415,12 @@
                     csvSummary: document.getElementById('csvSummary')
                 };
 
-                // Log missing elements for debugging
+                // Debug missing elements
                 Object.keys(this.els).forEach(key => {
-                    if (!this.els[key]) console.warn(`Missing element: #${key}`);
+                    if (!this.els[key]) console.warn(`Missing element in DOM: #${key}`);
                 });
             }
+
             attachEventListeners() {
                 if (this.els.searchInput) this.els.searchInput.addEventListener('input', () => this.handleFilter());
                 if (this.els.openTab) this.els.openTab.addEventListener('click', () => this.handleTabChange('open'));
@@ -397,95 +429,132 @@
                 if (this.els.noEmailTab) this.els.noEmailTab.addEventListener('click', () => this.handleTabChange('no-email'));
                 if (this.els.closedTab) this.els.closedTab.addEventListener('click', () => this.handleTabChange('closed'));
             }
+
             async handleCSVUpload(event) {
-                const file = event.target.files[0];
+                const file = event.target.files?.[0];
                 if (!file) return;
 
-                if (this.els.loadingState) this.els.loadingState.classList.add('active');
-                if (this.els.loadingText) this.els.loadingText.textContent = 'Reading CSV file...';
-                if (this.els.emptyState) this.els.emptyState.style.display = 'none';
-                if (this.els.progressFill) this.els.progressFill.style.width = '0%';
-                if (this.els.progressText) this.els.progressText.textContent = '';
+                console.log("CSV upload started:", file.name);
+
+                this.els?.loadingState?.classList.add('active');
+                this.els?.loadingText?.textContent = 'Reading CSV file...';
+                this.els?.emptyState?.style.display = 'none';
+                this.els?.progressFill?.style.width = '0%';
+                this.els?.progressText?.textContent = '';
 
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
                         const csvText = e.target.result;
-                        if (this.els.loadingText) this.els.loadingText.textContent = 'Checking websites...';
+                        this.els?.loadingText?.textContent = 'Checking websites...';
 
                         const result = await this.processor.processCSV(csvText, (current, total) => {
                             const percent = Math.round((current / total) * 100);
-                            if (this.els.progressFill) this.els.progressFill.style.width = `${percent}%`;
-                            if (this.els.progressText) this.els.progressText.textContent = `Checked ${current} of ${total} websites`;
+                            this.els?.progressFill?.style.width = `${percent}%`;
+                            this.els?.progressText?.textContent = `Checked ${current} of ${total} websites`;
                         });
 
-                        const addedCount = this.state.addLeads(result.leads);
+                        const added = this.state.addLeads(result.leads);
 
-                        if (this.els.csvSummary) {
+                        if (this.els?.csvSummary) {
                             this.els.csvSummary.innerHTML = `
-                                • Total rows in CSV: ${result.summary.totalRows}<br>
-                                • Rows with website URL: ${result.summary.withWebsite}<br>
-                                • Websites checked: ${result.summary.checkedWebsites}<br>
-                                • Websites down: ${result.summary.downWebsites}<br>
-                                • <strong>New leads added: ${addedCount}</strong>
+                                • Total rows: ${result.summary.totalRows}<br>
+                                • With website: ${result.summary.withWebsite}<br>
+                                • Checked: ${result.summary.checkedWebsites}<br>
+                                • Down: ${result.summary.downWebsites}<br>
+                                • New leads added: ${added}
                             `;
                         }
-                        if (this.els.summaryModal) this.els.summaryModal.classList.add('active');
+                        this.els?.summaryModal?.classList.add('active');
 
                         this.render();
-                    } catch (error) {
-                        console.error('Error processing CSV:', error);
-                        alert(error.message || 'Error processing CSV file. Please check the format.');
+                    } catch (err) {
+                        console.error("CSV processing error:", err);
+                        alert("Error: " + err.message);
                     } finally {
-                        if (this.els.loadingState) this.els.loadingState.classList.remove('active');
+                        this.els?.loadingState?.classList.remove('active');
                         event.target.value = '';
                     }
                 };
                 reader.readAsText(file);
             }
-            render() {
-                if (this.els.totalLeads) this.els.totalLeads.textContent = this.state.leads.length;
-                // Add other stat updates with null checks...
-                if (this.els.leadsList) {
-                    this.els.leadsList.innerHTML = this.state.leads.map(lead => `
-                        <div class="lead-card">
-                            <div class="lead-header">
-                                <div class="lead-icon">${lead.businessName.slice(0,2).toUpperCase()}</div>
-                                <div class="lead-info">
-                                    <div class="lead-name">${lead.businessName}</div>
-                                    <div class="lead-website">🔴 ${lead.website}</div>
-                                </div>
-                                <div class="lead-actions">
-                                    <select class="move-dropdown" onchange="app.handleMoveToChange(${lead.id}, this.value)">
-                                        <option value="open">Open</option>
-                                        <option value="contacted">Contacted</option>
-                                        <option value="email-found">Email Found</option>
-                                        <option value="no-email">No Email</option>
-                                        <option value="closed">Closed</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
+
+            handleFilter() {
+                if (this.els.searchInput) {
+                    const query = this.els.searchInput.value;
+                    this.state.filterLeads(query);
+                    this.render();
                 }
             }
-            handleMoveToChange(id, tab) {
-                this.state.updateLead(id, { moveToAction: tab });
-                this.render(); // Re-renders with correct tab filter
+
+            handleTabChange(tab) {
+                this.state.setTab(tab);
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                const tabEl = document.getElementById(`${tab}Tab`);
+                if (tabEl) tabEl.classList.add('active');
+                this.els?.currentTabLabel?.textContent = tab.charAt(0).toUpperCase() + tab.slice(1) + ' Leads';
+                this.handleFilter();
             }
+
+            handleMoveToChange(id, action) {
+                this.state.updateLead(id, { moveToAction: action });
+                this.render();
+            }
+
+            render() {
+                console.log("Rendering leads:", this.state.leads.length);
+                if (!this.els.leadsList) return;
+
+                const list = this.els.leadsList;
+                list.innerHTML = '';
+
+                if (this.state.leads.length === 0) {
+                    if (this.els.emptyState) this.els.emptyState.style.display = 'block';
+                    return;
+                }
+
+                if (this.els.emptyState) this.els.emptyState.style.display = 'none';
+
+                // Simple render – expand this with your full card design
+                list.innerHTML = this.state.leads.map(lead => `
+                    <div class="lead-card">
+                        <div class="lead-header">
+                            <div class="lead-icon">${lead.businessName.slice(0,2).toUpperCase()}</div>
+                            <div class="lead-info">
+                                <div class="lead-name">${lead.businessName}</div>
+                                <div class="lead-website">🔴 ${lead.website}</div>
+                            </div>
+                            <div class="lead-actions">
+                                <select class="move-dropdown" onchange="app.handleMoveToChange(${lead.id}, this.value)">
+                                    <option value="open">Open</option>
+                                    <option value="contacted">Contacted</option>
+                                    <option value="email-found">Email Found</option>
+                                    <option value="no-email">No Email</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Update stats (add more if needed)
+                if (this.els.totalLeads) this.els.totalLeads.textContent = this.state.leads.length;
+            }
+
             exportToExcel() {
-                // Simplified export – expand as needed
-                alert('Export not fully implemented yet – coming soon!');
+                alert("Export coming soon – current leads: " + this.state.leads.length);
             }
         }
 
-        // Create app immediately
+        // Create app instance immediately
+        console.log("Creating app instance...");
         window.app = new CRMApp();
 
-        // Hide loading when everything is ready
+        // Hide loading when page is fully ready
         window.addEventListener('load', () => {
             const loading = document.getElementById('appLoading');
             if (loading) loading.style.display = 'none';
+            console.log("Page fully loaded – app ready");
         });
     </script>
 </body>
