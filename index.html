@@ -109,12 +109,12 @@
 </head>
 <body>
 
-    <!-- Full-page loading overlay until app is ready -->
+    <!-- Full-page loading overlay -->
     <div id="appLoading">
         <div style="text-align:center;">
             <div class="spinner"></div>
             <p>Loading Lead Finder CRM...</p>
-            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait a moment</p>
+            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait 2–3 seconds</p>
         </div>
     </div>
 
@@ -203,16 +203,15 @@
     </div>
 
     <script>
-        console.log("Script file loaded");
+        console.log("Script started loading...");
 
         const BACKEND_URL = 'https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app';
 
-        // Safe upload trigger function
         function uploadCSV() {
             if (window.app && typeof window.app.handleCSVUpload === 'function') {
                 document.getElementById('csvFileInput').click();
             } else {
-                alert('App is still initializing – please wait a few seconds and try again.');
+                alert('App is still loading – wait 2–3 seconds and try again, or refresh the page.');
             }
         }
 
@@ -261,10 +260,10 @@
             async checkWebsite(url) {
                 try {
                     const res = await fetch(`${this.backendUrl}/check?url=${encodeURIComponent(url)}`);
-                    if (!res.ok) throw new Error(`API returned ${res.status}`);
+                    if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
                     return await res.json();
                 } catch (err) {
-                    console.error("API check failed:", err);
+                    console.error("Check failed:", err);
                     return { status: 'down', details: err.message || 'Failed to fetch' };
                 }
             }
@@ -366,7 +365,9 @@
             constructor() {
                 console.log("CRMApp constructor running");
                 this.state = new CRMState();
-                this.processor = new CSVProcessor();   // FIXED: this line was missing
+                this.processor = new CSVProcessor();   // FIXED HERE – this was missing
+                this.exporter = new ExcelExporter();   // for export
+                this.pendingSaleLeadId = null;
                 this.init();
             }
 
@@ -375,13 +376,12 @@
                 this.cacheElements();
                 this.attachEventListeners();
                 this.render();
-                // Hide loading overlay
                 const loading = document.getElementById('appLoading');
                 if (loading) loading.style.display = 'none';
             }
 
             cacheElements() {
-                console.log("Caching DOM elements...");
+                console.log("Caching elements...");
                 this.els = {
                     searchInput: document.getElementById('searchInput'),
                     leadsList: document.getElementById('leadsList'),
@@ -415,9 +415,8 @@
                     csvSummary: document.getElementById('csvSummary')
                 };
 
-                // Debug missing elements
                 Object.keys(this.els).forEach(key => {
-                    if (!this.els[key]) console.warn(`Missing element in DOM: #${key}`);
+                    if (!this.els[key]) console.warn(`Missing DOM element: #${key}`);
                 });
             }
 
@@ -502,7 +501,7 @@
             }
 
             render() {
-                console.log("Rendering leads:", this.state.leads.length);
+                console.log("Rendering - leads:", this.state.leads.length);
                 if (!this.els.leadsList) return;
 
                 const list = this.els.leadsList;
@@ -515,7 +514,6 @@
 
                 if (this.els.emptyState) this.els.emptyState.style.display = 'none';
 
-                // Simple render – expand this with your full card design
                 list.innerHTML = this.state.leads.map(lead => `
                     <div class="lead-card">
                         <div class="lead-header">
@@ -537,20 +535,19 @@
                     </div>
                 `).join('');
 
-                // Update stats (add more if needed)
                 if (this.els.totalLeads) this.els.totalLeads.textContent = this.state.leads.length;
             }
 
             exportToExcel() {
-                alert("Export coming soon – current leads: " + this.state.leads.length);
+                alert("Export feature coming soon – current leads: " + this.state.leads.length);
             }
         }
 
-        // Create app instance immediately
+        // Create app immediately
         console.log("Creating app instance...");
         window.app = new CRMApp();
 
-        // Hide loading when page is fully ready
+        // Hide loading when page is fully loaded
         window.addEventListener('load', () => {
             const loading = document.getElementById('appLoading');
             if (loading) loading.style.display = 'none';
