@@ -73,25 +73,23 @@
 </head>
 <body>
 
-    <!-- Full-page loading overlay -->
     <div id="appLoading">
         <div style="text-align:center;">
             <div class="spinner"></div>
             <p>Loading Lead Finder CRM...</p>
-            <p style="font-size:14px; color:#718096; margin-top:10px;">Please wait a moment</p>
         </div>
     </div>
 
     <div class="container">
         <header>
             <h1>Lead Finder CRM</h1>
-            <p class="subtitle">Upload CSV data to find businesses with down websites (using server proxy)</p>
+            <p class="subtitle">Upload CSV to find businesses with down websites</p>
         </header>
 
         <div class="controls">
             <button class="btn btn-success" onclick="uploadCSV()">📁 Upload CSV File</button>
             <input type="file" id="csvFileInput" accept=".csv" style="display:none">
-            <button class="btn btn-export" onclick="if(window.app) app.exportToExcel(); else alert('App not ready yet')">
+            <button class="btn btn-export" onclick="if(window.app) app.exportToExcel(); else alert('App not ready')">
                 📊 Export to Excel
             </button>
             <div class="filter-group">
@@ -102,12 +100,6 @@
         <div class="stats">
             <div class="stat-item"><span class="stat-label">Total Leads</span><span class="stat-value" id="totalLeads">0</span></div>
             <div class="stat-item"><span class="stat-label">Open Leads</span><span class="stat-value" id="openLeads">0</span></div>
-            <div class="stat-item"><span class="stat-label">Contacted</span><span class="stat-value" id="contactedCount">0</span></div>
-            <div class="stat-item"><span class="stat-label">Email Found</span><span class="stat-value" id="emailFoundCount">0</span></div>
-            <div class="stat-item"><span class="stat-label">No Email</span><span class="stat-value" id="noEmailCount">0</span></div>
-            <div class="stat-item"><span class="stat-label">Closed</span><span class="stat-value" id="closedCount">0</span></div>
-            <div class="stat-item"><span class="stat-label">Sales</span><span class="stat-value" id="salesCount">0</span></div>
-            <div class="stat-item"><span class="stat-label">Revenue</span><span class="stat-value" id="totalRevenue">$0</span></div>
         </div>
 
         <div class="tabs">
@@ -127,16 +119,15 @@
                 <div class="progress-text" id="progressText"></div>
             </div>
             <div class="empty-state" id="emptyState">
-                <div class="empty-state-icon">📋</div>
                 <div class="empty-state-title">No leads yet</div>
-                <p>Upload a CSV file to find leads with down websites</p>
+                <p>Upload a CSV file to start</p>
             </div>
             <div id="leadsList"></div>
         </div>
     </div>
 
     <script>
-        console.log("Script started loading...");
+        console.log("Script loaded");
 
         const BACKEND_URL = 'https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app';
 
@@ -144,7 +135,7 @@
             if (window.app && typeof window.app.handleCSVUpload === 'function') {
                 document.getElementById('csvFileInput').click();
             } else {
-                alert('App is still loading – wait a few seconds and try again.');
+                alert('App is still loading – please wait a moment.');
             }
         }
 
@@ -196,7 +187,6 @@
                     if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
                     return await res.json();
                 } catch (err) {
-                    console.error("Check failed:", err);
                     return { status: 'down', details: err.message || 'Failed to fetch' };
                 }
             }
@@ -297,14 +287,14 @@
 
         class CRMApp {
             constructor() {
-                console.log("CRMApp constructor running");
+                console.log("CRMApp created");
                 this.state = new CRMState();
                 this.processor = new CSVProcessor();
                 this.init();
             }
 
             init() {
-                console.log("CRMApp init called");
+                console.log("Initializing app");
                 this.cacheElements();
                 this.attachEventListeners();
                 this.render();
@@ -313,7 +303,6 @@
             }
 
             cacheElements() {
-                console.log("Caching elements...");
                 this.els = {
                     searchInput: document.getElementById('searchInput'),
                     leadsList: document.getElementById('leadsList'),
@@ -328,24 +317,8 @@
                     emailFoundTab: document.getElementById('emailFoundTab'),
                     noEmailTab: document.getElementById('noEmailTab'),
                     closedTab: document.getElementById('closedTab'),
-                    openBadge: document.getElementById('openBadge'),
-                    contactedBadge: document.getElementById('contactedBadge'),
-                    emailFoundBadge: document.getElementById('emailFoundBadge'),
-                    noEmailBadge: document.getElementById('noEmailBadge'),
-                    closedBadge: document.getElementById('closedBadge'),
-                    totalLeads: document.getElementById('totalLeads'),
-                    openLeads: document.getElementById('openLeads'),
-                    contactedCount: document.getElementById('contactedCount'),
-                    emailFoundCount: document.getElementById('emailFoundCount'),
-                    noEmailCount: document.getElementById('noEmailCount'),
-                    closedCount: document.getElementById('closedCount'),
-                    salesCount: document.getElementById('salesCount'),
-                    totalRevenue: document.getElementById('totalRevenue')
+                    totalLeads: document.getElementById('totalLeads')
                 };
-
-                Object.keys(this.els).forEach(key => {
-                    if (!this.els[key]) console.warn(`Missing DOM element: #${key}`);
-                });
             }
 
             attachEventListeners() {
@@ -361,13 +334,9 @@
                 const file = event.target.files?.[0];
                 if (!file) return;
 
-                console.log("CSV upload started:", file.name);
-
                 this.els?.loadingState?.classList.add('active');
-                this.els?.loadingText?.textContent = 'Reading CSV file...';
+                this.els?.loadingText?.textContent = 'Processing CSV...';
                 this.els?.emptyState?.style.display = 'none';
-                this.els?.progressFill?.style.width = '0%';
-                this.els?.progressText?.textContent = '';
 
                 const reader = new FileReader();
                 reader.onload = async (e) => {
@@ -378,14 +347,13 @@
                         const result = await this.processor.processCSV(csvText, (current, total) => {
                             const percent = Math.round((current / total) * 100);
                             this.els?.progressFill?.style.width = `${percent}%`;
-                            this.els?.progressText?.textContent = `Checked ${current} of ${total} websites`;
+                            this.els?.progressText?.textContent = `Checked ${current} of ${total}`;
                         });
 
-                        const added = this.state.addLeads(result.leads);
-
+                        this.state.addLeads(result.leads);
                         this.render();
                     } catch (err) {
-                        console.error("CSV processing error:", err);
+                        console.error("Error:", err);
                         alert("Error: " + err.message);
                     } finally {
                         this.els?.loadingState?.classList.remove('active');
@@ -397,8 +365,7 @@
 
             handleFilter() {
                 if (this.els.searchInput) {
-                    const query = this.els.searchInput.value;
-                    this.state.filterLeads(query);
+                    this.state.filterLeads(this.els.searchInput.value);
                     this.render();
                 }
             }
@@ -406,14 +373,12 @@
             handleTabChange(tab) {
                 this.state.setTab(tab);
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                const tabEl = document.getElementById(`${tab}Tab`);
-                if (tabEl) tabEl.classList.add('active');
+                document.getElementById(`${tab}Tab`)?.classList.add('active');
                 this.els?.currentTabLabel?.textContent = tab.charAt(0).toUpperCase() + tab.slice(1) + ' Leads';
                 this.handleFilter();
             }
 
             render() {
-                console.log("Rendering - leads:", this.state.leads.length);
                 if (!this.els.leadsList) return;
 
                 const list = this.els.leadsList;
@@ -451,15 +416,12 @@
             }
         }
 
-        // Create app instance immediately
-        console.log("Creating app instance...");
+        // Start the app
         window.app = new CRMApp();
 
-        // Hide loading when page is fully loaded
+        // Hide loading overlay when ready
         window.addEventListener('load', () => {
-            const loading = document.getElementById('appLoading');
-            if (loading) loading.style.display = 'none';
-            console.log("Page fully loaded – app ready");
+            document.getElementById('appLoading')?.style.display = 'none';
         });
     </script>
 </body>
