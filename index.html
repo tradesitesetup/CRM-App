@@ -1,282 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lead Finder CRM Tool</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM TOOL</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f9f9f9;
-    }
-    h1 {
-      color: #333;
-    }
-    #upload-area {
-      margin: 20px 0;
-      padding: 20px;
-      background: white;
-      border: 2px dashed #aaa;
-      border-radius: 8px;
-      text-align: center;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    th {
-      background: #4a90e2;
-      color: white;
-    }
-    .working { background: #e0ffe0; }
-    .down { background: #ffe0e0; }
-    .status-working { color: green; font-weight: bold; }
-    .status-down { color: red; font-weight: bold; }
-    #status {
-      margin-top: 20px;
-      padding: 10px;
-      border-radius: 5px;
-    }
-    #loading {
-      display: none;
-      margin-top: 20px;
-      color: #666;
-    }
-    button {
-      padding: 10px 20px;
-      background: #4a90e2;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 10px 0;
-    }
-    button:hover {
-      background: #357abd;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background-color: #f2f2f2; }
   </style>
 </head>
 <body>
+  <h1>CRM TOOL</h1>
+  <input type="file" id="csvInput" accept=".csv">
+  <button onclick="processCSV()">Process CSV</button>
+  <div id="results"></div>
 
-<h1>Lead Finder CRM Tool</h1>
+  <script>
+    const API_URL = 'https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app';
 
-<div id="upload-area">
-  <h3>Upload your CSV file</h3>
-  <input type="file" id="csvFile" accept=".csv" />
-  <br><br>
-  <button onclick="processFile()">Process CSV & Check Websites</button>
-</div>
+    function processCSV() {
+      const file = document.getElementById('csvInput').files[0];
+      if (!file) return;
 
-<div id="status"></div>
-<div id="loading">Processing... Please wait (this may take a while for large lists)</div>
-
-<table id="resultsTable" style="display:none;">
-  <thead>
-    <tr>
-      <th>URL</th>
-      <th>Status</th>
-      <th>Details</th>
-      <th>Suggestions (if any)</th>
-    </tr>
-  </thead>
-  <tbody id="resultsBody"></tbody>
-</table>
-
-<script>
-  // ──────────────────────────────────────────────
-  // CONFIG
-  // ──────────────────────────────────────────────
-  const API_URL = 'https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app';
-
-  // ──────────────────────────────────────────────
-  // Main file processing function
-  // ──────────────────────────────────────────────
-  async function processFile() {
-    const fileInput = document.getElementById('csvFile');
-    const file = fileInput.files[0];
-
-    if (!file) {
-      alert('Please select a CSV file first.');
-      return;
-    }
-
-    const statusDiv = document.getElementById('status');
-    const loadingDiv = document.getElementById('loading');
-    const table = document.getElementById('resultsTable');
-    const tbody = document.getElementById('resultsBody');
-
-    statusDiv.innerHTML = '';
-    loadingDiv.style.display = 'block';
-    table.style.display = 'none';
-    tbody.innerHTML = '';
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-      const text = e.target.result;
-      const lines = text.split(/\r?\n/);
-      const websites = [];
-
-      // Skip header row, look for URLs in any column
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        // Split by comma, look for any cell that looks like a URL
-        const cells = line.split(',');
-        for (let cell of cells) {
-          let url = cell.trim().replace(/^"|"$/g, ''); // remove quotes
-          if (url && (url.startsWith('http://') || url.startsWith('https://') || url.includes('.'))) {
-            // Basic URL cleaning
-            if (!url.startsWith('http')) {
-              url = 'https://' + url;
-            }
-            websites.push(url);
-          }
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n');
+        const websites = [];
+        for (let i = 1; i < lines.length; i++) {
+          const url = lines[i].trim();
+          if (url) websites.push(url);
         }
-      }
 
-      if (websites.length === 0) {
-        statusDiv.innerHTML = '<p style="color:red;">No valid websites found in CSV.</p>';
-        loadingDiv.style.display = 'none';
-        return;
-      }
+        console.log('Checking only these websites:', websites);
 
-      statusDiv.innerHTML = `<p>Found ${websites.length} websites. Checking now...</p>`;
+        let results = await checkWebsitesWithAPI(websites);
 
-      // Try API first
-      let results = await checkWebsitesWithAPI(websites);
+        if (!results) {
+          console.log('Falling back to browser checking');
+          results = await checkMultipleWebsites(websites);
+        }
 
-      if (!results) {
-        // Fallback to browser checking
-        results = await checkMultipleWebsites(websites);
-      }
-
-      // Display results
-      displayResults(results);
-      loadingDiv.style.display = 'none';
-      table.style.display = 'table';
-    };
-
-    reader.readAsText(file);
-  }
-
-  // ──────────────────────────────────────────────
-  // API method (POST batch)
-  // ──────────────────────────────────────────────
-  async function checkWebsitesWithAPI(websites) {
-    try {
-      console.log('Attempting API call with', websites.length, 'sites');
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websites })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('API response received:', data);
-      return data.results || data;
-    } catch (err) {
-      console.error('API failed:', err);
-      document.getElementById('status').innerHTML += '<p style="color:orange;">API check failed. Using browser fallback...</p>';
-      return null;
+        displayResults(results);
+      };
+      reader.readAsText(file);
     }
-  }
 
-  // ──────────────────────────────────────────────
-  // Fallback: Browser-based checking (HEAD requests)
-  // ──────────────────────────────────────────────
-  async function checkMultipleWebsites(websites) {
-    console.log('Falling back to browser-based checking');
-
-    const results = [];
-
-    for (const originalUrl of websites) {
-      let url = originalUrl.trim();
-
-      // Force HTTPS to prevent mixed content errors
-      if (url.startsWith('http://')) {
-        url = url.replace('http://', 'https://');
-      }
-      if (!url.startsWith('http')) {
-        url = 'https://' + url;
-      }
+    async function checkWebsitesWithAPI(websites) {
+      console.log('Attempting to use API:', API_URL);
+      console.log('=== API DEBUG INFO ===');
+      console.log('Number of websites:', websites.length);
+      console.log('Websites to check:', websites);
 
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-        const response = await fetch(url, {
-          method: 'HEAD',
-          mode: 'no-cors', // Helps with some cross-origin issues
-          signal: controller.signal,
-          cache: 'no-store'
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ websites })
         });
-
-        clearTimeout(timeoutId);
-
-        // In no-cors mode, response.ok is often false, but we can infer
-        const status = response.type === 'opaque' || response.ok ? 'working' : 'down';
-        results.push({
-          url,
-          status,
-          details: status === 'working' ? 'Likely working (opaque response)' : 'Failed HEAD check'
-        });
-      } catch (err) {
-        let details = err.message || 'Failed';
-        if (err.name === 'AbortError') details = 'Timeout';
-        if (err.message.includes('404')) details = 'Not Found (404)';
-        if (err.message.includes('405')) details = 'Method Not Allowed (405)';
-        if (err.message.includes('403')) details = 'Forbidden (403)';
-        if (err.message.includes('NAME_NOT_RESOLVED') || err.message.includes('Failed to resolve')) {
-          details = 'Domain not found';
-        }
-
-        results.push({ url, status: 'down', details });
-        console.warn(`Browser check failed for ${url}:`, err.message);
+        if (!response.ok) throw new Error('API failed');
+        const data = await response.json();
+        console.log('API response:', data);
+        return data.results;
+      } catch (error) {
+        console.error('API failed:', error);
+        return null;
       }
     }
 
-    return results;
-  }
+    async function checkMultipleWebsites(websites) {
+      const results = [];
+      for (let url of websites) {
+        url = url.replace(/^http:/, 'https:');
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          results.push({
+            url,
+            status: response.ok ? 'working' : 'down',
+            details: response.ok ? 'Website responded successfully' : `HTTP ${response.status}`
+          });
+        } catch (error) {
+          console.error('Browser check failed for', url, ':', error);
+          results.push({ url, status: 'down', details: 'Connection failed' });
+        }
+      }
+      return results;
+    }
 
-  // ──────────────────────────────────────────────
-  // Display results in table
-  // ──────────────────────────────────────────────
-  function displayResults(results) {
-    const tbody = document.getElementById('resultsBody');
-    tbody.innerHTML = '';
-
-    results.forEach(r => {
-      const row = document.createElement('tr');
-      row.className = r.status === 'working' ? 'working' : 'down';
-
-      row.innerHTML = `
-        <td><a href="${r.url}" target="_blank">${r.url}</a></td>
-        <td class="status-${r.status}">${r.status.toUpperCase()}</td>
-        <td>${r.details || ''}</td>
-        <td>${r.suggestions ? r.suggestions.join('<br>') : '-'}</td>
-      `;
-
-      tbody.appendChild(row);
-    });
-
-    document.getElementById('status').innerHTML = `<p style="color:green;">Checked ${results.length} websites.</p>`;
-  }
-</script>
-
+    function displayResults(results) {
+      const div = document.getElementById('results');
+      let html = '<table><tr><th>URL</th><th>Status</th><th>Details</th><th>Suggestions</th></tr>';
+      results.forEach(r => {
+        html += `<tr><td>${r.url}</td><td>${r.status}</td><td>${r.details}</td><td>${r.suggestions ? r.suggestions.join(', ') : 'None'}</td></tr>`;
+      });
+      html += '</table>';
+      div.innerHTML = html;
+    }
+  </script>
 </body>
 </html>
