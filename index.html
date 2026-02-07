@@ -372,7 +372,7 @@
                 <input 
                     type="text" 
                     id="apiUrl" 
-                    value="https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check"
+                    value="lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check"
                 >
                 <small style="display: block; margin-top: 6px; color: #64748b;">
                     API receives ONLY website URLs from the "Website" column. Expected format: POST {"websites": ["url1", "url2"]}
@@ -516,7 +516,7 @@
     </div>
 
     <script>
-        const BACKEND_URL = 'https://lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check';
+        const BACKEND_URL = 'lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check';
         
         class CSVParser {
             parse(csvText) {
@@ -640,7 +640,7 @@
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-                    const response = await fetch(url, {
+                    const response = await fetch(lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check, {
                         method: 'HEAD',
                         mode: 'no-cors',
                         signal: controller.signal
