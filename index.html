@@ -1,93 +1,188 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Website Status Checker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <title>Lead Finder CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 800px;
+      max-width: 1100px;
       margin: auto;
+      padding: 20px;
     }
-    textarea {
-      width: 100%;
-      height: 150px;
+
+    h2 {
+      margin-bottom: 5px;
     }
+
+    input[type="file"],
     button {
       margin-top: 10px;
-      padding: 10px 20px;
+    }
+
+    button {
+      padding: 10px 16px;
       cursor: pointer;
     }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #f4f4f4;
+    }
+
     pre {
       background: #f4f4f4;
       padding: 10px;
+      margin-top: 20px;
       white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
 
-  <h2>Website Status Checker</h2>
+<h2>Lead Finder CRM</h2>
+<p>Upload a CSV → extract URLs → send to API</p>
 
-  <label>API Endpoint:</label>
-  <input
-    type="text"
-    id="apiUrl"
-    style="width:100%"
-    value="https://lead-finder-proxy.vercel.app/api/check"
-  />
+<!-- API URL -->
+<label><strong>API Endpoint</strong></label><br>
+<input
+  type="text"
+  id="apiUrl"
+  style="width:100%"
+  value="https://lead-finder-proxy.vercel.app/api/check"
+/>
 
-  <br><br>
+<br><br>
 
-  <label>Enter websites (one per line):</label>
-  <textarea id="websitesInput" placeholder="https://example.com"></textarea>
+<!-- CSV Upload -->
+<label><strong>Upload CSV</strong></label><br>
+<input type="file" id="csvFile" accept=".csv" />
 
-  <br>
+<br><br>
 
-  <button onclick="checkWebsites()">Check Websites</button>
+<button onclick="processCSV()">Process CSV & Run API</button>
 
-  <h3>Result</h3>
-  <pre id="output">Waiting...</pre>
+<!-- Table -->
+<table id="dataTable" style="display:none">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Website</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-  <script>
-    async function checkWebsites() {
-      const apiUrl = document.getElementById("apiUrl").value.trim();
-      const websites = document
-        .getElementById("websitesInput")
-        .value
-        .split("\n")
-        .map(w => w.trim())
-        .filter(Boolean);
+<!-- Raw Output -->
+<pre id="output">Waiting for CSV...</pre>
 
-      if (websites.length === 0) {
-        alert("Enter at least one website");
-        return;
-      }
+<script>
+let extractedWebsites = [];
 
-      document.getElementById("output").textContent = "Checking...";
+// ===== CSV PARSER =====
+function parseCSV(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const headers = lines[0].split(",").map(h => h.toLowerCase());
 
-      try {
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({ websites })
-        });
+  const urlIndex =
+    headers.indexOf("website") !== -1 ? headers.indexOf("website") :
+    headers.indexOf("url") !== -1 ? headers.indexOf("url") :
+    headers.indexOf("domain");
 
-        const data = await response.json();
-        document.getElementById("output").textContent =
-          JSON.stringify(data, null, 2);
+  if (urlIndex === -1) {
+    alert("No website/url column found in CSV");
+    return [];
+  }
 
-      } catch (err) {
-        document.getElementById("output").textContent =
-          "ERROR:\n" + err.message;
-      }
-    }
-  </script>
+  return lines.slice(1).map(line => {
+    const cols = line.split(",");
+    return cols[urlIndex]?.trim();
+  }).filter(Boolean);
+}
+
+// ===== MAIN FLOW =====
+async function processCSV() {
+  const fileInput = document.getElementById("csvFile");
+  const apiUrl = document.getElementById("apiUrl").value.trim();
+
+  if (!fileInput.files.length) {
+    alert("Upload a CSV file");
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const text = await file.text();
+
+  extractedWebsites = parseCSV(text);
+
+  if (!extractedWebsites.length) {
+    alert("No valid websites found");
+    return;
+  }
+
+  document.getElementById("output").textContent =
+    `Extracted ${extractedWebsites.length} websites...\nSending to API...`;
+
+  runAPI(apiUrl, extractedWebsites);
+}
+
+// ===== API CALL =====
+async function runAPI(apiUrl, websites) {
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ websites })
+    });
+
+    const data = await response.json();
+    renderResults(data.results || []);
+
+    document.getElementById("output").textContent =
+      JSON.stringify(data, null, 2);
+
+  } catch (err) {
+    document.getElementById("output").textContent =
+      "API ERROR:\n" + err.message;
+  }
+}
+
+// ===== TABLE RENDER =====
+function renderResults(results) {
+  const table = document.getElementById("dataTable");
+  const tbody = table.querySelector("tbody");
+  tbody.innerHTML = "";
+
+  results.forEach((r, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${i + 1}</td>
+      <td>${r.website}</td>
+      <td>${r.ok ? "OK" : "FAIL"}</td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  table.style.display = "table";
+}
+</script>
 
 </body>
 </html>
