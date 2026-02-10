@@ -372,10 +372,11 @@
                 <input 
                     type="text" 
                     id="apiUrl" 
-                    value="lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check"
+                    placeholder="https://your-api.vercel.app/api/check"
+                    value=""
                 >
                 <small style="display: block; margin-top: 6px; color: #64748b;">
-                    API receives ONLY website URLs from the "Website" column. Expected format: POST {"websites": ["url1", "url2"]}
+                    ⚠️ REQUIRED: Enter your Vercel API URL (must start with https://). API receives ONLY website URLs from the "Website" column.
                 </small>
             </div>
         </div>
@@ -516,8 +517,6 @@
     </div>
 
     <script>
-        const BACKEND_URL = 'lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check';
-        
         class CSVParser {
             parse(csvText) {
                 const lines = csvText.split('\n').map(line => line.trim()).filter(line => line);
@@ -590,19 +589,29 @@
                 this.timeout = 10000;
                 this.apiUrl = null;
             }
+            
             setApiUrl(url) {
                 this.apiUrl = url && url.trim() ? url.trim() : null;
             }
+            
             async checkWebsitesWithAPI(websites, onProgress) {
                 try {
-                    const apiEndpoint = this.apiUrl || BACKEND_URL;
+                    if (!this.apiUrl) {
+                        throw new Error('API URL not configured');
+                    }
+                    
+                    // Ensure API URL has protocol
+                    let apiEndpoint = this.apiUrl;
+                    if (!apiEndpoint.startsWith('http://') && !apiEndpoint.startsWith('https://')) {
+                        apiEndpoint = 'https://' + apiEndpoint;
+                    }
+                    
                     console.log('=== API DEBUG INFO ===');
                     console.log('API Endpoint:', apiEndpoint);
                     console.log('Number of websites:', websites.length);
                     console.log('Websites to check:', websites);
-                    console.log('Request payload:', JSON.stringify({ websites: websites }));
                     
-                    const response = await fetch(lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check, {
+                    const response = await fetch(apiEndpoint, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
@@ -612,7 +621,6 @@
                     });
                     
                     console.log('Response status:', response.status);
-                    console.log('Response statusText:', response.statusText);
                     console.log('Response headers:', [...response.headers.entries()]);
                     
                     if (!response.ok) {
@@ -623,24 +631,22 @@
                     
                     const results = await response.json();
                     console.log('API Success! Results:', results);
-                    console.log('Number of results:', results.results ? results.results.length : 'N/A');
                     console.log('=== END API DEBUG ===');
                     
                     return results.results || results;
                 } catch (error) {
                     console.error('=== API ERROR ===');
-                    console.error('Error name:', error.name);
-                    console.error('Error message:', error.message);
-                    console.error('Full error:', error);
+                    console.error('Error:', error);
                     console.error('=== END API ERROR ===');
-                    return null;
+                    throw error;
                 }
             }
+            
             async checkWebsiteBrowser(url) {
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-                    const response = await fetch(lead-finder-proxy-git-main-tradesitesetups-projects.vercel.app/api/check, {
+                    const response = await fetch(url, {
                         method: 'HEAD',
                         mode: 'no-cors',
                         signal: controller.signal
@@ -657,25 +663,26 @@
                     }
                 }
             }
+            
             async checkMultipleWebsites(websites, onProgress) {
-                // Always try API first (either from input field or BACKEND_URL constant)
-                const apiToUse = this.apiUrl || BACKEND_URL;
-                console.log('Attempting to use API:', apiToUse);
-                
-                if (apiToUse) {
-                    const apiResults = await this.checkWebsitesWithAPI(websites, onProgress);
-                    if (apiResults) {
+                // Try API first
+                if (this.apiUrl) {
+                    try {
+                        console.log('Attempting to use API:', this.apiUrl);
+                        const apiResults = await this.checkWebsitesWithAPI(websites, onProgress);
                         console.log('✅ API check succeeded!');
                         if (onProgress) onProgress(websites.length, websites.length);
                         return apiResults;
-                    } else {
-                        console.warn('⚠️ API check failed, falling back to browser checking');
-                        alert('API check failed. Falling back to browser-based checking. Check console for details.');
+                    } catch (error) {
+                        console.error('⚠️ API check failed:', error.message);
+                        alert(`API check failed: ${error.message}\n\nFalling back to browser-based checking (less accurate).`);
                     }
                 }
                 
                 // Fallback to browser checking
                 console.log('Using browser-based checking for', websites.length, 'websites');
+                alert('⚠️ No API URL configured. Using browser-based checking which is less reliable.\n\nPlease enter your API URL in the field above for accurate results.');
+                
                 const results = [];
                 for (let i = 0; i < websites.length; i++) {
                     const result = await this.checkWebsiteBrowser(websites[i]);
@@ -691,28 +698,36 @@
                 this.parser = new CSVParser();
                 this.checker = new WebsiteChecker();
             }
+            
             setApiUrl(url) {
                 this.checker.setApiUrl(url);
             }
+            
             async processCSV(csvText, onProgress) {
                 const rows = this.parser.parse(csvText);
                 if (rows.length < 2) {
                     return { leads: [], summary: { totalRows: 0, withWebsite: 0, checkedWebsites: 0, downWebsites: 0, finalLeads: 0 } };
                 }
+                
                 const headers = rows[0];
                 const dataRows = rows.slice(1);
+                
                 let businessCol = this.parser.findExactColumn(headers, 'Business Name');
                 if (businessCol === -1) {
                     businessCol = this.parser.findColumn(headers, ['business', 'company', 'name']);
                 }
+                
                 const websiteCol = this.parser.findExactColumn(headers, 'Website');
                 const emailCol = this.parser.findColumn(headers, ['email', 'e-mail', 'mail']);
                 const addressCol = this.parser.findExactColumn(headers, 'Address');
                 const cityStateCol = this.parser.findExactColumn(headers, 'City, State');
+                
                 if (websiteCol === -1) {
                     throw new Error('No "Website" column found in CSV. Please ensure your CSV has a column named exactly "Website".');
                 }
+                
                 const filteredRows = dataRows.filter(row => this.parser.isValidURL(row[websiteCol]));
+                
                 const summary = {
                     totalRows: dataRows.length,
                     withWebsite: filteredRows.length,
@@ -720,23 +735,29 @@
                     downWebsites: 0,
                     finalLeads: 0
                 };
+                
                 // ONLY extract website URLs for API
                 const websitesToCheck = filteredRows.map(row => this.parser.normalizeURL(row[websiteCol]));
                 console.log('Checking only these websites:', websitesToCheck);
+                
                 const websiteResults = await this.checker.checkMultipleWebsites(websitesToCheck, onProgress);
                 summary.checkedWebsites = websiteResults.length;
+                
                 const leads = [];
                 for (let i = 0; i < filteredRows.length; i++) {
                     const row = filteredRows[i];
                     const websiteResult = websiteResults[i];
+                    
                     if (websiteResult.status === 'down') {
                         summary.downWebsites++;
+                        
                         const businessName = businessCol >= 0 ? row[businessCol] : 'Unknown Business';
                         const email = emailCol >= 0 ? row[emailCol] : '';
                         const hasEmail = this.parser.isValidEmail(email);
                         const addressPart = addressCol >= 0 ? row[addressCol] : '';
                         const cityStatePart = cityStateCol >= 0 ? row[cityStateCol] : '';
                         const fullAddress = this.parser.combineAddress(addressPart, cityStatePart);
+                        
                         leads.push({
                             id: Date.now() + Math.random(),
                             businessName: businessName,
@@ -745,7 +766,7 @@
                             website: websiteResult.url,
                             address: fullAddress,
                             websiteStatus: 'down',
-                            websiteDetails: websiteResult.details,
+                            websiteDetails: websiteResult.details || 'Website is down',
                             status: 'not-contacted',
                             moveToAction: 'open',
                             notes: '',
@@ -754,6 +775,7 @@
                         });
                     }
                 }
+                
                 summary.finalLeads = leads.length;
                 return { leads, summary };
             }
@@ -765,6 +787,7 @@
                     alert('No leads to export');
                     return;
                 }
+                
                 const headers = ['Business Name', 'Website (Down)', 'Address', 'Email', 'Status', 'Tab', 'Sale Amount', 'Notes', 'Date Added'];
                 const rows = leads.map(lead => {
                     return [
@@ -779,6 +802,7 @@
                         new Date(lead.dateAdded).toLocaleDateString()
                     ].join(',');
                 });
+                
                 const csvContent = [headers.join(','), ...rows].join('\n');
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
@@ -790,6 +814,7 @@
                 link.click();
                 document.body.removeChild(link);
             }
+            
             escapeCSV(field) {
                 if (field === null || field === undefined) return '';
                 field = String(field);
@@ -807,6 +832,7 @@
                 this.expandedLeads = new Set();
                 this.currentTab = 'open';
             }
+            
             addLeads(newLeads) {
                 const existingWebsites = new Set(this.leads.map(l => l.website));
                 const uniqueLeads = newLeads.filter(lead => !existingWebsites.has(lead.website));
@@ -814,6 +840,7 @@
                 this.filteredLeads = [...this.leads];
                 return uniqueLeads.length;
             }
+            
             updateLead(id, updates) {
                 const index = this.leads.findIndex(l => l.id === id);
                 if (index !== -1) {
@@ -822,9 +849,11 @@
                 }
                 return false;
             }
+            
             setTab(tab) {
                 this.currentTab = tab;
             }
+            
             filterLeads(searchQuery) {
                 this.filteredLeads = this.leads.filter(lead => {
                     const tabMatch = lead.moveToAction === this.currentTab;
@@ -832,9 +861,11 @@
                     return tabMatch && searchMatch;
                 });
             }
+            
             getAllLeads() {
                 return this.leads;
             }
+            
             getStats() {
                 const openLeads = this.leads.filter(l => l.moveToAction === 'open');
                 const contactedLeads = this.leads.filter(l => l.moveToAction === 'contacted');
@@ -843,6 +874,7 @@
                 const closedLeads = this.leads.filter(l => l.moveToAction === 'closed');
                 const soldLeads = closedLeads.filter(l => l.status === 'sold');
                 const totalRevenue = soldLeads.reduce((sum, lead) => sum + (lead.saleAmount || 0), 0);
+                
                 return {
                     total: this.leads.length,
                     open: openLeads.length,
@@ -854,6 +886,7 @@
                     totalRevenue: totalRevenue
                 };
             }
+            
             toggleExpanded(id) {
                 if (this.expandedLeads.has(id)) {
                     this.expandedLeads.delete(id);
@@ -861,6 +894,7 @@
                     this.expandedLeads.add(id);
                 }
             }
+            
             isExpanded(id) {
                 return this.expandedLeads.has(id);
             }
@@ -875,11 +909,13 @@
                 this.pendingEmailLeadId = null;
                 this.init();
             }
+            
             init() {
                 this.cacheElements();
                 this.attachEventListeners();
                 this.render();
             }
+            
             cacheElements() {
                 this.els = {
                     apiUrl: document.getElementById('apiUrl'),
@@ -917,6 +953,7 @@
                     csvSummary: document.getElementById('csvSummary')
                 };
             }
+            
             attachEventListeners() {
                 this.els.searchInput.addEventListener('input', () => this.handleFilter());
                 this.els.openTab.addEventListener('click', () => this.handleTabChange('open'));
@@ -924,23 +961,29 @@
                 this.els.emailFoundTab.addEventListener('click', () => this.handleTabChange('email-found'));
                 this.els.noEmailTab.addEventListener('click', () => this.handleTabChange('no-email'));
                 this.els.closedTab.addEventListener('click', () => this.handleTabChange('closed'));
+                
                 this.els.saleAmountInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.confirmSale();
                 });
+                
                 this.els.emailInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.confirmEmail();
                 });
+                
                 this.els.apiUrl.addEventListener('change', () => {
                     localStorage.setItem('api_url', this.els.apiUrl.value);
                 });
+                
                 const savedApiUrl = localStorage.getItem('api_url');
                 if (savedApiUrl) {
                     this.els.apiUrl.value = savedApiUrl;
                 }
             }
+            
             handleTabChange(tab) {
                 this.state.setTab(tab);
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                
                 const tabLabels = {
                     'open': 'Open Leads',
                     'contacted': 'Contacted Leads',
@@ -948,6 +991,7 @@
                     'no-email': 'No Email',
                     'closed': 'Closed Leads'
                 };
+                
                 if (tab === 'open') {
                     this.els.openTab.classList.add('active');
                 } else if (tab === 'contacted') {
@@ -959,29 +1003,42 @@
                 } else {
                     this.els.closedTab.classList.add('active');
                 }
+                
                 this.els.currentTabLabel.textContent = tabLabels[tab];
                 this.handleFilter();
             }
+            
             async handleCSVUpload(event) {
                 const file = event.target.files[0];
                 if (!file) return;
-                this.processor.setApiUrl(this.els.apiUrl.value);
+                
+                const apiUrl = this.els.apiUrl.value.trim();
+                if (!apiUrl) {
+                    alert('⚠️ Please enter your API URL in the field above before uploading CSV.\n\nWithout an API, website checking will be less accurate.');
+                }
+                
+                this.processor.setApiUrl(apiUrl);
+                
                 this.els.loadingState.classList.add('active');
                 this.els.loadingText.textContent = 'Reading CSV file...';
                 this.els.emptyState.style.display = 'none';
                 this.els.progressFill.style.width = '0%';
                 this.els.progressText.textContent = '';
+                
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
                         const csvText = e.target.result;
                         this.els.loadingText.textContent = 'Checking websites...';
+                        
                         const result = await this.processor.processCSV(csvText, (current, total) => {
                             const percent = Math.round((current / total) * 100);
                             this.els.progressFill.style.width = `${percent}%`;
                             this.els.progressText.textContent = `Checked ${current} of ${total} websites`;
                         });
+                        
                         const addedCount = this.state.addLeads(result.leads);
+                        
                         this.els.csvSummary.innerHTML = `
                             • Total rows in CSV: ${result.summary.totalRows}<br>
                             • Rows with website URL: ${result.summary.withWebsite}<br>
@@ -989,8 +1046,10 @@
                             • Websites down: ${result.summary.downWebsites}<br>
                             • <strong>New leads added: ${addedCount}</strong>
                         `;
+                        
                         this.els.summaryModal.classList.add('active');
                         this.render();
+                        
                     } catch (error) {
                         console.error('Error processing CSV:', error);
                         alert(error.message || 'Error processing CSV file. Please check the format and try again.');
@@ -999,25 +1058,31 @@
                         event.target.value = '';
                     }
                 };
+                
                 reader.readAsText(file);
             }
+            
             exportToExcel() {
                 const allLeads = this.state.getAllLeads();
                 this.exporter.exportToCSV(allLeads);
             }
+            
             closeSummaryModal() {
                 this.els.summaryModal.classList.remove('active');
             }
+            
             handleFilter() {
                 const searchQuery = this.els.searchInput.value;
                 this.state.filterLeads(searchQuery);
                 this.render();
             }
+            
             handleMoveToChange(id, action) {
                 const cardElement = document.getElementById(`lead-${id}`);
                 if (cardElement) {
                     cardElement.style.display = 'none';
                 }
+                
                 if (action === 'sold') {
                     this.openSaleModal(id);
                 } else if (action === 'not-interested') {
@@ -1039,6 +1104,7 @@
                     this.render();
                 }
             }
+            
             handleStatusChange(id, status) {
                 if (status === 'sold') {
                     this.openSaleModal(id);
@@ -1047,16 +1113,19 @@
                     this.render();
                 }
             }
+            
             openSaleModal(leadId) {
                 this.pendingSaleLeadId = leadId;
                 this.els.saleAmountInput.value = '';
                 this.els.saleModal.classList.add('active');
                 setTimeout(() => this.els.saleAmountInput.focus(), 100);
             }
+            
             closeSaleModal() {
                 this.els.saleModal.classList.remove('active');
                 this.pendingSaleLeadId = null;
             }
+            
             confirmSale() {
                 const amount = parseFloat(this.els.saleAmountInput.value) || 0;
                 if (this.pendingSaleLeadId && amount > 0) {
@@ -1071,6 +1140,7 @@
                     alert('Please enter a sale amount greater than $0');
                 }
             }
+            
             openEmailModal(leadId) {
                 this.pendingEmailLeadId = leadId;
                 const lead = this.state.leads.find(l => l.id === leadId);
@@ -1078,10 +1148,12 @@
                 this.els.emailModal.classList.add('active');
                 setTimeout(() => this.els.emailInput.focus(), 100);
             }
+            
             closeEmailModal() {
                 this.els.emailModal.classList.remove('active');
                 this.pendingEmailLeadId = null;
             }
+            
             confirmEmail() {
                 const email = this.els.emailInput.value.trim();
                 if (this.pendingEmailLeadId && email) {
@@ -1090,6 +1162,7 @@
                         alert('Please enter a valid email address');
                         return;
                     }
+                    
                     this.state.updateLead(this.pendingEmailLeadId, {
                         email: email,
                         hasEmail: true,
@@ -1102,9 +1175,11 @@
                     alert('Please enter an email address');
                 }
             }
+            
             handleNotesChange(id, notes) {
                 this.state.updateLead(id, { notes });
             }
+            
             handleLeadClick(id, event) {
                 if (event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
                     return;
@@ -1112,6 +1187,7 @@
                 this.state.toggleExpanded(id);
                 this.render();
             }
+            
             getInitials(businessName) {
                 const words = businessName.split(' ');
                 if (words.length >= 2) {
@@ -1119,8 +1195,10 @@
                 }
                 return businessName.substring(0, 2).toUpperCase();
             }
+            
             renderLead(lead) {
                 const isExpanded = this.state.isExpanded(lead.id);
+                
                 const statusClasses = {
                     'not-contacted': 'status-not-contacted',
                     'contacted': 'status-contacted',
@@ -1131,8 +1209,10 @@
                     'email-found': 'status-email-found',
                     'no-email': 'status-no-email'
                 };
+                
                 const emailDisplay = lead.email ? lead.email : 'No email found';
                 const emailClass = lead.email ? '' : 'no-email';
+                
                 return `
                     <div class="lead-card" id="lead-${lead.id}">
                         <div class="lead-header" onclick="app.handleLeadClick(${lead.id}, event)">
@@ -1197,8 +1277,10 @@
                     </div>
                 `;
             }
+            
             updateStats() {
                 const stats = this.state.getStats();
+                
                 this.els.totalLeads.textContent = stats.total;
                 this.els.openLeads.textContent = stats.open;
                 this.els.contactedCount.textContent = stats.contacted;
@@ -1207,14 +1289,17 @@
                 this.els.closedCount.textContent = stats.closed;
                 this.els.salesCount.textContent = stats.sales;
                 this.els.totalRevenue.textContent = `$${stats.totalRevenue.toFixed(2)}`;
+                
                 this.els.openBadge.textContent = stats.open;
                 this.els.contactedBadge.textContent = stats.contacted;
                 this.els.emailFoundBadge.textContent = stats.emailFound;
                 this.els.noEmailBadge.textContent = stats.noEmail;
                 this.els.closedBadge.textContent = stats.closed;
             }
+            
             render() {
                 this.updateStats();
+                
                 if (this.state.filteredLeads.length === 0) {
                     if (this.state.leads.length === 0) {
                         this.els.emptyState.style.display = 'block';
